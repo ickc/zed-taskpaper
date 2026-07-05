@@ -266,7 +266,8 @@ impl Doc {
     }
 
     pub fn item_at_row(&self, row: usize) -> Option<usize> {
-        self.items.iter().position(|it| it.row == row)
+        // Items are in document order, one per line: rows strictly increase.
+        self.items.binary_search_by_key(&row, |it| it.row).ok()
     }
 
     /// The tag whose span contains the given line byte offset.
