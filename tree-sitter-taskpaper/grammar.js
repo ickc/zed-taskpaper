@@ -26,6 +26,7 @@ module.exports = grammar({
     $._project_begin,
     $._task_begin,
     $._note_begin,
+    $._dim,
     $.text,
     $._error_sentinel,
   ],
@@ -38,7 +39,15 @@ module.exports = grammar({
   rules: {
     document: $ => repeat($._item),
 
-    _item: $ => choice($.project, $.task, $.note),
+    // dim_* variants are items living under a @done/@cancelled ancestor:
+    // the scanner tracks done-ness per indent level and emits the
+    // zero-width _dim token in front of such items. Distinct node names
+    // let highlight queries fade whole subtrees with flat patterns at any
+    // nesting depth (deep wildcard patterns trip Zed's query match limit).
+    _item: $ => choice(
+      $.project, $.task, $.note,
+      $.dim_project, $.dim_task, $.dim_note,
+    ),
 
     project: $ => seq(
       $._project_begin,
@@ -59,6 +68,35 @@ module.exports = grammar({
     ),
 
     note: $ => seq(
+      $._note_begin,
+      optional($.text),
+      repeat($.tag),
+      $._eol,
+      optional($._children),
+    ),
+
+    dim_project: $ => seq(
+      $._dim,
+      $._project_begin,
+      optional(field('name', $.text)),
+      ':',
+      repeat($.tag),
+      $._eol,
+      optional($._children),
+    ),
+
+    dim_task: $ => seq(
+      $._dim,
+      $._task_begin,
+      $.marker,
+      optional($.text),
+      repeat($.tag),
+      $._eol,
+      optional($._children),
+    ),
+
+    dim_note: $ => seq(
+      $._dim,
       $._note_begin,
       optional($.text),
       repeat($.tag),

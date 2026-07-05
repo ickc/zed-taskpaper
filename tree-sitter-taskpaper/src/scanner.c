@@ -23,6 +23,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 enum TokenType {
     INDENT,
@@ -31,6 +32,7 @@ enum TokenType {
     PROJECT_BEGIN,
     TASK_BEGIN,
     NOTE_BEGIN,
+    DIM,
     TEXT,
     ERROR_SENTINEL,
 };
@@ -44,10 +46,12 @@ enum TokenType {
 
 typedef struct {
     uint32_t stack[MAX_DEPTH]; // stack[0] == 0 always
+    bool dim[MAX_DEPTH];       // level is inside a @done/@cancelled subtree
     uint32_t depth;            // number of valid entries, >= 1
     uint32_t dedents;          // dedents still owed to the parser
     uint32_t pending;          // text length for the current line's body
     uint32_t start_col;        // column where the current line's content starts
+    bool last_line_done;       // last classified line carried @done/@cancelled
 } Scanner;
 
 static inline void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
@@ -87,6 +91,31 @@ static uint32_t body_end_without_tags(const int32_t *buf, uint32_t len) {
     return (uint32_t)end;
 }
 
+// True if the trailing-tag run [body_end, len) contains @done or
+// @cancelled. Only called on regions already validated by
+// body_end_without_tags, so the walk is a simple forward pass.
+static bool tags_mark_done(const int32_t *buf, uint32_t body_end, uint32_t len) {
+    static const int32_t DONE[] = {'d', 'o', 'n', 'e'};
+    static const int32_t CANCELLED[] = {'c', 'a', 'n', 'c', 'e', 'l', 'l', 'e', 'd'};
+    uint32_t i = body_end;
+    while (i < len) {
+        while (i < len && is_inline_ws(buf[i])) i++;
+        if (i >= len || buf[i] != '@') break;
+        uint32_t name = ++i;
+        while (i < len && is_tag_name_char(buf[i])) i++;
+        uint32_t n = i - name;
+        if ((n == 4 && memcmp(buf + name, DONE, sizeof DONE) == 0) ||
+            (n == 9 && memcmp(buf + name, CANCELLED, sizeof CANCELLED) == 0)) {
+            return true;
+        }
+        if (i < len && buf[i] == '(') {
+            while (i < len && buf[i] != ')') i++;
+            if (i < len) i++;
+        }
+    }
+    return false;
+}
+
 static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
     // In error recovery every token is marked valid; bail out and let the
     // internal lexer handle it.
@@ -99,29 +128,21 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
         return true;
     }
 
-    if (valid[EOL] &&
-        (lexer->lookahead == '\r' || lexer->lookahead == '\n' || lexer->eof(lexer))) {
-        lexer->mark_end(lexer);
-        if (lexer->lookahead == '\r') advance(lexer);
-        if (lexer->lookahead == '\n') advance(lexer);
-        lexer->mark_end(lexer);
-        lexer->result_symbol = EOL;
-        return true;
-    }
-
+    // TEXT is checked before EOL: both can be valid at once, and the EOL
+    // branch below moves the lookahead (which would corrupt the column
+    // arithmetic here). This branch only advances when it emits.
     if (valid[TEXT]) {
         lexer->mark_end(lexer);
-        uint32_t n;
+        uint32_t n = 0;
         if (s->pending == PENDING_TO_EOL) {
             n = UINT32_MAX; // consume to end of line
         } else {
             // Characters of this line's content already consumed by other
             // tokens (the task marker), measured by column.
             uint32_t col = lexer->get_column(lexer);
-            if (col < s->start_col) return false;
-            uint32_t already = col - s->start_col;
-            if (s->pending <= already) return false;
-            n = s->pending - already;
+            if (col >= s->start_col && s->pending > col - s->start_col) {
+                n = s->pending - (col - s->start_col);
+            }
         }
         uint32_t taken = 0;
         while (taken < n && !lexer->eof(lexer) && lexer->lookahead != '\n' &&
@@ -129,14 +150,37 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
             advance(lexer);
             taken++;
         }
-        if (taken == 0) return false;
+        if (taken > 0) {
+            lexer->mark_end(lexer);
+            lexer->result_symbol = TEXT;
+            return true;
+        }
+        // No text to emit here; fall through (e.g. to EOL).
+    }
+
+    // The body text excludes trailing whitespace, so EOL owns any inline
+    // whitespace running up to the line ending (or EOF).
+    if (valid[EOL]) {
         lexer->mark_end(lexer);
-        lexer->result_symbol = TEXT;
-        return true;
+        while (is_inline_ws(lexer->lookahead)) advance(lexer);
+        bool cr = lexer->lookahead == '\r';
+        if (cr) advance(lexer);
+        if (lexer->lookahead == '\n') {
+            advance(lexer);
+            lexer->mark_end(lexer);
+            lexer->result_symbol = EOL;
+            return true;
+        }
+        if (cr || lexer->eof(lexer)) {
+            lexer->mark_end(lexer);
+            lexer->result_symbol = EOL;
+            return true;
+        }
+        return false; // mid-line (e.g. before a tag): nothing committed
     }
 
     bool line_start = valid[INDENT] || valid[DEDENT] || valid[PROJECT_BEGIN] ||
-                      valid[TASK_BEGIN] || valid[NOTE_BEGIN];
+                      valid[TASK_BEGIN] || valid[NOTE_BEGIN] || valid[DIM];
     if (!line_start) return false;
 
     // Everything below starts as pure lookahead; mark_end() is only moved
@@ -176,6 +220,10 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
 
     if (indent > cur) {
         if (valid[INDENT] && s->depth < MAX_DEPTH) {
+            // A new level is dim if the enclosing level already is, or if
+            // the item introducing it (the last classified line) carried
+            // @done/@cancelled.
+            s->dim[s->depth] = s->dim[s->depth - 1] || s->last_line_done;
             s->stack[s->depth++] = indent;
             lexer->mark_end(lexer); // INDENT owns the whitespace
             lexer->result_symbol = INDENT;
@@ -199,6 +247,15 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
         }
     }
 
+    // Lines inside a @done/@cancelled subtree are announced with a
+    // zero-width DIM token before their begin marker (the grammar's dim_*
+    // item variants). Emitted at most once per item: after it, the parser
+    // only asks for begin markers.
+    if (s->dim[s->depth - 1] && valid[DIM]) {
+        lexer->result_symbol = DIM; // zero-width; whitespace stays lookahead
+        return true;
+    }
+
     // Same level: classify the line. The marker token owns the leading
     // whitespace/blank lines consumed above.
     lexer->mark_end(lexer);
@@ -219,14 +276,22 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
     }
 
     enum TokenType kind;
+    bool line_done = false;
     if (len > 0 && buf[0] == '-' && (len == 1 || is_inline_ws(buf[1]))) {
         kind = TASK_BEGIN;
-        s->pending = truncated ? PENDING_TO_EOL : body_end_without_tags(buf, len);
+        if (truncated) {
+            s->pending = PENDING_TO_EOL;
+        } else {
+            uint32_t body_end = body_end_without_tags(buf, len);
+            s->pending = body_end;
+            line_done = tags_mark_done(buf, body_end, len);
+        }
     } else if (truncated) {
         kind = NOTE_BEGIN;
         s->pending = PENDING_TO_EOL;
     } else {
         uint32_t body_end = body_end_without_tags(buf, len);
+        line_done = tags_mark_done(buf, body_end, len);
         if (body_end > 0 && buf[body_end - 1] == ':') {
             kind = PROJECT_BEGIN;
             s->pending = body_end - 1; // name excludes the ":"
@@ -236,6 +301,7 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
         }
     }
     if (!valid[kind]) return false;
+    s->last_line_done = line_done;
     lexer->result_symbol = (unsigned)kind;
     return true;
 }
@@ -250,6 +316,8 @@ void tree_sitter_taskpaper_external_scanner_destroy(void *payload) {
     free(payload);
 }
 
+// Layout: [dedents][pending lo, hi][start_col lo, hi][last_line_done]
+//         [depth][stack bytes x depth][dim bytes x depth]
 unsigned tree_sitter_taskpaper_external_scanner_serialize(void *payload, char *buffer) {
     Scanner *s = payload;
     unsigned size = 0;
@@ -260,8 +328,17 @@ unsigned tree_sitter_taskpaper_external_scanner_serialize(void *payload, char *b
     uint32_t start_col = s->start_col > 0xFFFF ? 0xFFFF : s->start_col;
     buffer[size++] = (char)(start_col & 0xFF);
     buffer[size++] = (char)(start_col >> 8);
-    for (uint32_t i = 0; i < s->depth && size < TREE_SITTER_SERIALIZATION_BUFFER_SIZE; i++) {
+    buffer[size++] = (char)s->last_line_done;
+    uint32_t depth = s->depth;
+    if (7 + 2 * depth > TREE_SITTER_SERIALIZATION_BUFFER_SIZE) {
+        depth = (TREE_SITTER_SERIALIZATION_BUFFER_SIZE - 7) / 2;
+    }
+    buffer[size++] = (char)depth;
+    for (uint32_t i = 0; i < depth; i++) {
         buffer[size++] = (char)(s->stack[i] > 255 ? 255 : s->stack[i]);
+    }
+    for (uint32_t i = 0; i < depth; i++) {
+        buffer[size++] = (char)s->dim[i];
     }
     return size;
 }
@@ -270,21 +347,24 @@ void tree_sitter_taskpaper_external_scanner_deserialize(void *payload, const cha
     Scanner *s = payload;
     s->depth = 1;
     s->stack[0] = 0;
+    s->dim[0] = false;
     s->dedents = 0;
     s->pending = 0;
     s->start_col = 0;
-    if (length < 5) return;
+    s->last_line_done = false;
+    if (length < 7) return;
     s->dedents = (uint8_t)buffer[0];
     s->pending = (uint32_t)(uint8_t)buffer[1] | ((uint32_t)(uint8_t)buffer[2] << 8);
     s->start_col = (uint32_t)(uint8_t)buffer[3] | ((uint32_t)(uint8_t)buffer[4] << 8);
-    s->depth = 0;
-    for (unsigned i = 5; i < length && s->depth < MAX_DEPTH; i++) {
-        s->stack[s->depth++] = (uint8_t)buffer[i];
+    s->last_line_done = buffer[5] != 0;
+    uint32_t depth = (uint8_t)buffer[6];
+    if (depth == 0 || depth > MAX_DEPTH || 7 + 2 * depth > length) return;
+    s->depth = depth;
+    for (uint32_t i = 0; i < depth; i++) {
+        s->stack[i] = (uint8_t)buffer[7 + i];
+        s->dim[i] = buffer[7 + depth + i] != 0;
     }
-    if (s->depth == 0) {
-        s->depth = 1;
-        s->stack[0] = 0;
-    }
+    s->dim[0] = false;
 }
 
 bool tree_sitter_taskpaper_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid) {

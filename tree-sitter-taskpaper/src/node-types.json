@@ -1,5 +1,145 @@
 [
   {
+    "type": "dim_note",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dim_note",
+          "named": true
+        },
+        {
+          "type": "dim_project",
+          "named": true
+        },
+        {
+          "type": "dim_task",
+          "named": true
+        },
+        {
+          "type": "note",
+          "named": true
+        },
+        {
+          "type": "project",
+          "named": true
+        },
+        {
+          "type": "tag",
+          "named": true
+        },
+        {
+          "type": "task",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dim_project",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "text",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dim_note",
+          "named": true
+        },
+        {
+          "type": "dim_project",
+          "named": true
+        },
+        {
+          "type": "dim_task",
+          "named": true
+        },
+        {
+          "type": "note",
+          "named": true
+        },
+        {
+          "type": "project",
+          "named": true
+        },
+        {
+          "type": "tag",
+          "named": true
+        },
+        {
+          "type": "task",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dim_task",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "dim_note",
+          "named": true
+        },
+        {
+          "type": "dim_project",
+          "named": true
+        },
+        {
+          "type": "dim_task",
+          "named": true
+        },
+        {
+          "type": "marker",
+          "named": true
+        },
+        {
+          "type": "note",
+          "named": true
+        },
+        {
+          "type": "project",
+          "named": true
+        },
+        {
+          "type": "tag",
+          "named": true
+        },
+        {
+          "type": "task",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "document",
     "named": true,
     "root": true,
@@ -8,6 +148,18 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "dim_note",
+          "named": true
+        },
+        {
+          "type": "dim_project",
+          "named": true
+        },
+        {
+          "type": "dim_task",
+          "named": true
+        },
         {
           "type": "note",
           "named": true
@@ -31,6 +183,18 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "dim_note",
+          "named": true
+        },
+        {
+          "type": "dim_project",
+          "named": true
+        },
+        {
+          "type": "dim_task",
+          "named": true
+        },
         {
           "type": "note",
           "named": true
@@ -73,6 +237,18 @@
       "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "dim_note",
+          "named": true
+        },
+        {
+          "type": "dim_project",
+          "named": true
+        },
+        {
+          "type": "dim_task",
+          "named": true
+        },
         {
           "type": "note",
           "named": true
@@ -126,6 +302,18 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "dim_note",
+          "named": true
+        },
+        {
+          "type": "dim_project",
+          "named": true
+        },
+        {
+          "type": "dim_task",
+          "named": true
+        },
         {
           "type": "marker",
           "named": true

@@ -10,10 +10,11 @@
 ; The task bullet doubles as a checkbox-ish signal: @punctuation.special
 ; (an accent color) while open, ghost-faded once done/cancelled.
 ;
-; IMPORTANT: Zed runs highlight queries with a query-cursor match limit of
-; 64 (syntax_map.rs); too many concurrently-matching patterns silently drop
-; matches. That is why the wash below is packed into few patterns via
-; alternations instead of one pattern per leaf kind.
+; NOTE: Zed runs highlight queries with a query-cursor match limit of 64;
+; deep wildcard patterns silently drop matches. Subtree fading is therefore
+; not done here at all: the scanner tracks done-ness per indent level and
+; parses items under a @done/@cancelled ancestor as dim_* nodes, so every
+; pattern in this file is flat and cheap, at unlimited nesting depth.
 
 (project name: (text) @title)
 (project ":" @title)
@@ -26,13 +27,29 @@
 
 ; --- @done / @cancelled wash ---------------------------------------------
 ; Zed theme syntax styles have no strikethrough, so completed/cancelled
-; items fade into the @predictive ghost style. Tags are always a trailing
-; run of siblings, so "this item is done/cancelled" is simply "has such a
-; (tag) child", and child items always come after the tags. Captures must
-; target leaf nodes (inner captures beat outer ones in Zed).
+; items fade into the @predictive ghost style. Captures target leaf nodes
+; (inner captures beat outer ones in Zed).
 
-; The item's own line, before the state tag: bullet, body text, project
-; colon, and any earlier tags.
+; Items under a @done/@cancelled ancestor: the scanner already did the
+; hard work, these nodes just need painting.
+(dim_project [
+  (text) @predictive
+  ":" @predictive
+  (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+])
+(dim_task [
+  (marker) @predictive
+  (text) @predictive
+  (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+])
+(dim_note [
+  (text) @predictive
+  (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+])
+
+; The tagged item's own line. Tags are always a trailing run of siblings,
+; so "this item is done/cancelled" is "has such a (tag) child"; the two
+; patterns cover material before and after the state tag.
 ((_ [
      (marker) @predictive
      (text) @predictive
@@ -42,67 +59,8 @@
     (tag (tag_name) @_t))
  (#match? @_t "^@(done|cancelled)$"))
 
-; Tags after the state tag.
 ((_ (tag (tag_name) @_t)
     (tag [(tag_name) (tag_value) "(" ")"] @predictive))
- (#match? @_t "^@(done|cancelled)$"))
-
-; Descendants: a @done/@cancelled item fades its whole subtree. Queries
-; cannot recurse, so this is spelled out per depth, 1-6 levels below the
-; tagged item — one pattern per depth.
-
-((_ (tag (tag_name) @_t)
-    (_ [
-        (marker) @predictive
-        (text) @predictive
-        ":" @predictive
-        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
-       ]))
- (#match? @_t "^@(done|cancelled)$"))
-
-((_ (tag (tag_name) @_t)
-    (_ (_ [
-        (marker) @predictive
-        (text) @predictive
-        ":" @predictive
-        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
-       ])))
- (#match? @_t "^@(done|cancelled)$"))
-
-((_ (tag (tag_name) @_t)
-    (_ (_ (_ [
-        (marker) @predictive
-        (text) @predictive
-        ":" @predictive
-        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
-       ]))))
- (#match? @_t "^@(done|cancelled)$"))
-
-((_ (tag (tag_name) @_t)
-    (_ (_ (_ (_ [
-        (marker) @predictive
-        (text) @predictive
-        ":" @predictive
-        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
-       ])))))
- (#match? @_t "^@(done|cancelled)$"))
-
-((_ (tag (tag_name) @_t)
-    (_ (_ (_ (_ (_ [
-        (marker) @predictive
-        (text) @predictive
-        ":" @predictive
-        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
-       ]))))))
- (#match? @_t "^@(done|cancelled)$"))
-
-((_ (tag (tag_name) @_t)
-    (_ (_ (_ (_ (_ (_ [
-        (marker) @predictive
-        (text) @predictive
-        ":" @predictive
-        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
-       ])))))))
  (#match? @_t "^@(done|cancelled)$"))
 
 ; --- state-tag accents (last, so they survive the wash) -------------------

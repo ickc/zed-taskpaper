@@ -154,3 +154,27 @@ Nested parens in value make it plain text
   (task
     (marker)
     (text)))
+
+================================================================================
+Trailing whitespace before the newline
+================================================================================
+Errands: 
+	- post office   
+	- bakery @open(9-5)  
+plain note	
+--------------------------------------------------------------------------------
+
+(document
+  (project
+    name: (text)
+    (task
+      (marker)
+      (text))
+    (task
+      (marker)
+      (text)
+      (tag
+        name: (tag_name)
+        value: (tag_value))))
+  (note
+    (text)))

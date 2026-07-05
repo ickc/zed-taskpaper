@@ -3,7 +3,7 @@ authors = ["Kolen Cheung <10970208+ickc@users.noreply.github.com>"]
 channels = ["conda-forge"]
 name = "zed-taskpaper"
 platforms = ["linux-64", "linux-aarch64", "osx-arm64", "osx-64"]
-version = "0.1.1"
+version = "0.1.2"
 
 # This is a pure language extension (grammar + queries, no Rust/WASM code of
 # its own): Zed fetches the grammar from this repo at the pinned commit and

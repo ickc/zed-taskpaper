@@ -1,0 +1,98 @@
+================================================================================
+Done project dims its whole subtree, siblings unaffected
+================================================================================
+Kitchen redo: @done
+	- pick a design
+		- gather samples @vendor(local)
+		- settle on colors @done
+		- order materials
+			- confirm lead times
+				supplier said six weeks
+	- demolition
+		- prep work
+			- cover: floors, then counters
+Garden:
+	- plant herbs
+--------------------------------------------------------------------------------
+
+(document
+  (project
+    name: (text)
+    (tag
+      name: (tag_name))
+    (dim_task
+      (marker)
+      (text)
+      (dim_task
+        (marker)
+        (text)
+        (tag
+          name: (tag_name)
+          value: (tag_value)))
+      (dim_task
+        (marker)
+        (text)
+        (tag
+          name: (tag_name)))
+      (dim_task
+        (marker)
+        (text)
+        (dim_task
+          (marker)
+          (text)
+          (dim_note
+            (text)))))
+    (dim_task
+      (marker)
+      (text)
+      (dim_task
+        (marker)
+        (text)
+        (dim_task
+          (marker)
+          (text)))))
+  (project
+    name: (text)
+    (task
+      (marker)
+      (text))))
+
+================================================================================
+Cancelled task dims descendants, including nested projects
+================================================================================
+- draft the proposal @cancelled(scope change)
+	Appendix:
+		- collect figures
+- write summary
+--------------------------------------------------------------------------------
+
+(document
+  (task
+    (marker)
+    (text)
+    (tag
+      name: (tag_name)
+      value: (tag_value))
+    (dim_project
+      name: (text)
+      (dim_task
+        (marker)
+        (text))))
+  (task
+    (marker)
+    (text)))
+
+================================================================================
+Done tag mid-line does not dim children
+================================================================================
+- a @done b
+	- child
+--------------------------------------------------------------------------------
+
+(document
+  (task
+    (marker)
+    (text)
+    (task
+      (marker)
+      (text))))

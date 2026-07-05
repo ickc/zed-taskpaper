@@ -1,6 +1,6 @@
 id = "taskpaper"
 name = "TaskPaper"
-version = "0.1.1"
+version = "0.1.2"
 schema_version = 1
 authors = ["Kolen Cheung <10970208+ickc@users.noreply.github.com>"]
 description = "TaskPaper language support: syntax highlighting, tag-aware styling, and outline navigation for plain-text todo lists."

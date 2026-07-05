@@ -19,8 +19,8 @@ queries, no language server, no background processes.
 - **Highlighting** — projects as titles, notes dimmed, tags and values
   distinctly colored.
 - **`@done` / `@cancelled` fading** — tagged items and their entire subtree
-  (up to 6 levels deep) fade into the theme's ghost style, distinct from
-  note dimming. The state tag stays legible: `@done` muted blue,
+  (any depth) fade into the theme's ghost style, distinct from note
+  dimming. The state tag stays legible: `@done` muted blue,
   `@cancelled` muted amber. Task bullets act as pseudo-checkboxes: accent
   colored while open, faded when closed.
 - **Outline** — projects (only) appear in the outline panel and
@@ -59,7 +59,6 @@ can provide.
 ## Limitations
 
 - Faded, not struck through: Zed theme syntax styles have no strikethrough.
-- The fade cascade stops 6 levels below the tagged item.
 - Tag values cannot contain `)` or newlines; nested parentheses make the
   run plain text.
 - Tags are recognized only at the end of a line (stricter than TaskPaper 3,

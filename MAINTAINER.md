@@ -74,14 +74,20 @@ wasi-sdk clang, `-fPIC -shared -Os -Wl,--export=tree_sitter_taskpaper
   `@done`/`@cancelled` "wash" targets leaf nodes (`text`, `marker`,
   `tag_name`, …) rather than whole items, and why the state-tag accent
   patterns sit at the bottom of the file.
-- Tree-sitter queries cannot recurse, so the subtree fade is spelled out per
-  depth (currently 1–6 levels below the tagged item).
 - Zed runs highlight queries with a query-cursor **match limit of 64**
   (`crates/language/src/syntax_map.rs`); when too many patterns match
-  concurrently, tree-sitter silently drops matches — this once broke the
-  fade entirely. Keep the wash packed into few patterns via alternations
-  (currently ~8); the `tree-sitter query` CLI has no such limit, so it
-  cannot catch regressions here.
+  concurrently, tree-sitter silently drops matches, and the `tree-sitter
+  query` CLI has no such limit so it cannot catch regressions here. This is
+  why subtree fading is NOT query-based: the scanner tracks done-ness per
+  indent level (`dim[]`, seeded from the last classified line's trailing
+  @done/@cancelled) and emits a zero-width `_dim` token so descendants
+  parse as `dim_project`/`dim_task`/`dim_note`. All highlight patterns stay
+  flat, and the fade works at unlimited depth.
+- The `_eol` token owns trailing inline whitespace: the external `text`
+  token stops before it, and if `_eol` refused to start on a space the
+  `extras: [/\s/]` rule would swallow the newline and the next line's
+  indentation (this was a real bug — one trailing space corrupted the
+  whole following structure).
 - Style palette: notes `@comment`; done/cancelled wash `@predictive`
   (ghost style); `@done` tag `@hint`; `@cancelled` tag `@string.special`.
   All are defined by Zed's first-party themes.
