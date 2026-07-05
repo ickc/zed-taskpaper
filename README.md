@@ -27,9 +27,19 @@ The grammar follows the [TaskPaper 3 conventions](https://guide.taskpaper.com/ge
 
 - **Highlighting** — projects styled as titles, notes dimmed, tasks plain,
   tags and tag values distinctly colored.
-- **`@done` fading** — the whole line of an item tagged `@done` is faded
-  like a comment. (Zed theme syntax styles have no strikethrough, so fading
-  is the closest sensible rendering.)
+- **`@done` / `@cancelled` fading** — items tagged `@done` or `@cancelled`
+  are washed into the theme's "predictive" ghost style (dimmer than
+  comments, italic in most themes), so completed items, cancelled items,
+  and notes all recede but read differently. The fade cascades to the
+  item's whole subtree (up to 3 levels below the tagged item), so marking
+  a project `@done` fades everything in it. The state tags themselves stay
+  legible: `@done` in the theme's muted "hint" blue, `@cancelled` in muted
+  amber. (Zed theme syntax styles have no strikethrough, so fading is the
+  closest sensible rendering.)
+- **Bullets as pseudo-checkboxes** — the `- ` bullet is an accent color
+  while a task is open and ghost-faded once done/cancelled. Real checkbox
+  glyphs (`☐`/`☑`) would need conceal/virtual text, which Zed has no
+  extension API for; the bullet's color state is the closest available.
 - **Outline panel** — projects (and only projects, like Markdown headings)
   appear in the outline panel and in `cmd-shift-o`, nested as in the
   document, shown by bare name without the colon or tags.
@@ -94,6 +104,9 @@ new SHA.
 
 ## Known limitations
 
+- The `@done`/`@cancelled` fade cascades at most 3 levels below the tagged
+  item (tree-sitter queries cannot recurse); deeper descendants keep their
+  normal colors.
 - Tag values cannot contain `)` or newlines; a value with nested
   parentheses (e.g. `@note(a(b))`) makes the whole run plain text.
 - Lines longer than 4096 characters are classified by prefix only (a
