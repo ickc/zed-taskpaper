@@ -140,6 +140,11 @@ fn sort_action(doc: &Doc, uri: &Uri, i: usize) -> Option<CodeAction> {
             (due, first, last)
         })
         .collect();
+    // Blank lines between one block and the next belong to no subtree;
+    // attach them to the preceding block so sorting doesn't drop them.
+    for k in 0..blocks.len() - 1 {
+        blocks[k].2 = blocks[k + 1].1 - 1;
+    }
     let already_sorted = blocks.windows(2).all(|w| {
         matches!(
             (w[0].0, w[1].0),
@@ -382,6 +387,20 @@ mod tests {
     fn archive_nothing_to_do() {
         let doc = parse("- open\n");
         assert!(archive(&doc).is_none());
+    }
+
+    #[test]
+    fn sort_keeps_blank_lines_between_children() {
+        use std::str::FromStr;
+        let doc = parse("P:\n\t- b @due(2026-07-09)\n\n\t- a @due(2026-07-01)\n");
+        let uri = Uri::from_str("file:///t.taskpaper").unwrap();
+        let action = sort_action(&doc, &uri, 0).unwrap();
+        let changes = action.edit.unwrap().changes.unwrap();
+        let edit = &changes[&uri][0];
+        assert_eq!(
+            edit.new_text,
+            "\t- a @due(2026-07-01)\n\t- b @due(2026-07-09)\n"
+        );
     }
 
     #[test]
