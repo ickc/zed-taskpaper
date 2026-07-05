@@ -114,10 +114,19 @@ impl zed::Extension for TaskPaperExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
+        let binary_settings = LspSettings::for_worktree(SERVER_BIN, worktree)
+            .ok()
+            .and_then(|settings| settings.binary);
         Ok(zed::Command {
             command: self.language_server_binary_path(language_server_id, worktree)?,
-            args: Vec::new(),
-            env: Vec::new(),
+            args: binary_settings
+                .as_ref()
+                .and_then(|binary| binary.arguments.clone())
+                .unwrap_or_default(),
+            env: binary_settings
+                .and_then(|binary| binary.env)
+                .map(|env| env.into_iter().collect())
+                .unwrap_or_default(),
         })
     }
 }
