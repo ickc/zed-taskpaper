@@ -81,6 +81,11 @@ fn main() -> Result<(), Error> {
         index: workspace::Index::build(root),
     };
 
+    // Surface diagnostics for every TaskPaper file in the workspace up
+    // front, not just the ones that get opened. (Connection::initialize has
+    // already consumed the `initialized` notification at this point.)
+    publish_workspace_diagnostics(&connection, &server)?;
+
     main_loop(connection, &mut server)?;
     io_threads.join()?;
     Ok(())
@@ -247,19 +252,35 @@ fn handle_notification(
         DidCloseTextDocument::METHOD => {
             let params = not.extract::<DidCloseTextDocumentParams>(DidCloseTextDocument::METHOD)?;
             server.docs.remove(params.text_document.uri.as_str());
-            let clear = PublishDiagnosticsParams {
-                uri: params.text_document.uri,
-                diagnostics: Vec::new(),
-                version: None,
-            };
-            connection
-                .sender
-                .send(Message::Notification(Notification::new(
-                    PublishDiagnostics::METHOD.into(),
-                    clear,
-                )))?;
+            // Keep the closed file's diagnostics alive from its on-disk
+            // state (so the project diagnostics panel stays a cross-file
+            // view); clear them only if the file is gone.
+            let uri = params.text_document.uri;
+            let doc = workspace::path_of_uri(&uri)
+                .and_then(|path| std::fs::read_to_string(path).ok())
+                .map(|text| model::parse(&text))
+                .unwrap_or_default();
+            publish_diagnostics(connection, &uri, &doc, None)?;
         }
         _ => {}
+    }
+    Ok(())
+}
+
+/// Publish diagnostics for every indexed workspace file that isn't open
+/// (open documents are covered by didOpen/didChange with buffer content).
+fn publish_workspace_diagnostics(connection: &Connection, server: &Server) -> Result<(), Error> {
+    for path in server.index.files() {
+        let Some(uri) = workspace::uri_of_path(path) else {
+            continue;
+        };
+        if server.docs.contains_key(uri.as_str()) {
+            continue;
+        }
+        let Ok(text) = std::fs::read_to_string(path) else {
+            continue;
+        };
+        publish_diagnostics(connection, &uri, &model::parse(&text), None)?;
     }
     Ok(())
 }
