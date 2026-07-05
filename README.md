@@ -34,52 +34,20 @@ Not yet on the Zed extension registry:
 1. Clone this repo.
 2. In Zed: `zed: extensions` → `Install Dev Extension` → select the clone.
 
-## Toggling `@done` with `alt-d`
+## Marking items `@done` with `alt-d`
 
-Zed extensions cannot add editor commands, but a Zed task can. Save this as
-`~/.config/zed/taskpaper_toggle_done.py`:
-
-```python
-import re, sys
-path, row = sys.argv[1], int(sys.argv[2]) - 1
-with open(path) as f:
-    lines = f.readlines()
-eol = '\n' if lines[row].endswith('\n') else ''
-line = lines[row].rstrip('\n')
-new = re.sub(r'(?:^|[ \t]+)@done(\([^)]*\))?(?=[ \t]|$)', '', line, count=1).rstrip(' \t')
-if new == line:
-    new = line + ' @done'
-lines[row] = new + eol
-with open(path, 'w') as f:
-    f.writelines(lines)
-```
-
-Add to `tasks.json` (`zed: open tasks`):
-
-```json
-{
-  "label": "TaskPaper: toggle @done",
-  "command": "python3 ~/.config/zed/taskpaper_toggle_done.py \"$ZED_FILE\" \"$ZED_ROW\"",
-  "reveal": "never",
-  "hide": "always"
-}
-```
-
-And to `keymap.json` (`zed: open keymap`):
+Zed extensions cannot add editor commands, so a true in-buffer toggle is
+not possible; this binding appends ` @done` to the current line
+(`zed: open keymap`):
 
 ```json
 {
   "context": "Editor && extension == taskpaper",
   "bindings": {
-    "alt-d": ["task::Spawn", { "task_name": "TaskPaper: toggle @done" }]
+    "alt-d": ["workspace::SendKeystrokes", "end space @ d o n e"]
   }
 }
 ```
-
-The task edits the file on disk, so save (`cmd-s`) before pressing `alt-d`;
-Zed reloads the buffer automatically. If you prefer a zero-setup,
-append-only binding instead, use
-`"alt-d": ["workspace::SendKeystrokes", "end space @ d o n e"]`.
 
 ## Filtering
 

@@ -9,6 +9,11 @@
 ;   @cancelled tag   -> @string.special (muted amber: "stopped")
 ; The task bullet doubles as a checkbox-ish signal: @punctuation.special
 ; (an accent color) while open, ghost-faded once done/cancelled.
+;
+; IMPORTANT: Zed runs highlight queries with a query-cursor match limit of
+; 64 (syntax_map.rs); too many concurrently-matching patterns silently drop
+; matches. That is why the wash below is packed into few patterns via
+; alternations instead of one pattern per leaf kind.
 
 (project name: (text) @title)
 (project ":" @title)
@@ -21,118 +26,83 @@
 
 ; --- @done / @cancelled wash ---------------------------------------------
 ; Zed theme syntax styles have no strikethrough, so completed/cancelled
-; items are faded into the @predictive ghost style. Tags are always a
-; trailing run of siblings, so "this item is done/cancelled" is simply
-; "has such a (tag) child"; child items always come after the tags, which
-; is what makes the descendant patterns below safe.
+; items fade into the @predictive ghost style. Tags are always a trailing
+; run of siblings, so "this item is done/cancelled" is simply "has such a
+; (tag) child", and child items always come after the tags. Captures must
+; target leaf nodes (inner captures beat outer ones in Zed).
 
-; The item's own line: bullet, body text, project colon, and any other
-; tags before/after the @done/@cancelled tag.
-((_ (marker) @predictive (tag (tag_name) @_t))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (text) @predictive (tag (tag_name) @_t))
- (#match? @_t "^@(done|cancelled)$"))
-((project ":" @predictive (tag (tag_name) @_t))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @predictive) (tag (tag_name) @_t))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_value) @predictive) (tag (tag_name) @_t))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag ["(" ")"] @predictive) (tag (tag_name) @_t))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (tag (tag_name) @predictive))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (tag (tag_value) @predictive))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (tag ["(" ")"] @predictive))
+; The item's own line, before the state tag: bullet, body text, project
+; colon, and any earlier tags.
+((_ [
+     (marker) @predictive
+     (text) @predictive
+     ":" @predictive
+     (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+    ]
+    (tag (tag_name) @_t))
  (#match? @_t "^@(done|cancelled)$"))
 
-; Descendants: a @done/@cancelled project or task fades its whole subtree.
-; Queries cannot recurse, so this is spelled out for 1-6 levels of nesting
-; below the tagged item.
-
-; depth 1
-((_ (tag (tag_name) @_t) (_ (marker) @predictive))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (text) @predictive))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (project ":" @predictive))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (tag (tag_name) @predictive)))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (tag (tag_value) @predictive)))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (tag ["(" ")"] @predictive)))
+; Tags after the state tag.
+((_ (tag (tag_name) @_t)
+    (tag [(tag_name) (tag_value) "(" ")"] @predictive))
  (#match? @_t "^@(done|cancelled)$"))
 
-; depth 2
-((_ (tag (tag_name) @_t) (_ (_ (marker) @predictive)))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (text) @predictive)))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (project ":" @predictive)))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (tag (tag_name) @predictive))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (tag (tag_value) @predictive))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (tag ["(" ")"] @predictive))))
+; Descendants: a @done/@cancelled item fades its whole subtree. Queries
+; cannot recurse, so this is spelled out per depth, 1-6 levels below the
+; tagged item — one pattern per depth.
+
+((_ (tag (tag_name) @_t)
+    (_ [
+        (marker) @predictive
+        (text) @predictive
+        ":" @predictive
+        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+       ]))
  (#match? @_t "^@(done|cancelled)$"))
 
-; depth 3
-((_ (tag (tag_name) @_t) (_ (_ (_ (marker) @predictive))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (text) @predictive))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (project ":" @predictive))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (tag (tag_name) @predictive)))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (tag (tag_value) @predictive)))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (tag ["(" ")"] @predictive)))))
+((_ (tag (tag_name) @_t)
+    (_ (_ [
+        (marker) @predictive
+        (text) @predictive
+        ":" @predictive
+        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+       ])))
  (#match? @_t "^@(done|cancelled)$"))
 
-; depth 4
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (marker) @predictive)))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (text) @predictive)))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (project ":" @predictive)))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (tag (tag_name) @predictive))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (tag (tag_value) @predictive))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (tag ["(" ")"] @predictive))))))
+((_ (tag (tag_name) @_t)
+    (_ (_ (_ [
+        (marker) @predictive
+        (text) @predictive
+        ":" @predictive
+        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+       ]))))
  (#match? @_t "^@(done|cancelled)$"))
 
-; depth 5
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (marker) @predictive))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (text) @predictive))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (project ":" @predictive))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (tag (tag_name) @predictive)))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (tag (tag_value) @predictive)))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (tag ["(" ")"] @predictive)))))))
+((_ (tag (tag_name) @_t)
+    (_ (_ (_ (_ [
+        (marker) @predictive
+        (text) @predictive
+        ":" @predictive
+        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+       ])))))
  (#match? @_t "^@(done|cancelled)$"))
 
-; depth 6
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (marker) @predictive)))))))
+((_ (tag (tag_name) @_t)
+    (_ (_ (_ (_ (_ [
+        (marker) @predictive
+        (text) @predictive
+        ":" @predictive
+        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+       ]))))))
  (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (text) @predictive)))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (project ":" @predictive)))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (tag (tag_name) @predictive))))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (tag (tag_value) @predictive))))))))
- (#match? @_t "^@(done|cancelled)$"))
-((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (tag ["(" ")"] @predictive))))))))
+
+((_ (tag (tag_name) @_t)
+    (_ (_ (_ (_ (_ (_ [
+        (marker) @predictive
+        (text) @predictive
+        ":" @predictive
+        (tag [(tag_name) (tag_value) "(" ")"] @predictive)
+       ])))))))
  (#match? @_t "^@(done|cancelled)$"))
 
 ; --- state-tag accents (last, so they survive the wash) -------------------

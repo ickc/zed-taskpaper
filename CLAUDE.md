@@ -17,5 +17,9 @@ Hard rules:
   time); it is gitignored.
 - In `highlights.scm`, pattern order is load-bearing: base styles, then the
   done/cancelled wash, then state-tag accents last.
+- Zed caps highlight-query matching at 64 concurrent matches (the
+  tree-sitter CLI does not, so `tree-sitter query` passing proves nothing
+  about Zed). Never expand the wash back into many per-leaf patterns; use
+  alternations within few patterns.
 - Verify with `pixi run ci` before pushing; CI must stay green on Linux and
   macOS.

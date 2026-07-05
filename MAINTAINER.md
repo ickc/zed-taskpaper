@@ -76,6 +76,12 @@ wasi-sdk clang, `-fPIC -shared -Os -Wl,--export=tree_sitter_taskpaper
   patterns sit at the bottom of the file.
 - Tree-sitter queries cannot recurse, so the subtree fade is spelled out per
   depth (currently 1–6 levels below the tagged item).
+- Zed runs highlight queries with a query-cursor **match limit of 64**
+  (`crates/language/src/syntax_map.rs`); when too many patterns match
+  concurrently, tree-sitter silently drops matches — this once broke the
+  fade entirely. Keep the wash packed into few patterns via alternations
+  (currently ~8); the `tree-sitter query` CLI has no such limit, so it
+  cannot catch regressions here.
 - Style palette: notes `@comment`; done/cancelled wash `@predictive`
   (ghost style); `@done` tag `@hint`; `@cancelled` tag `@string.special`.
   All are defined by Zed's first-party themes.
