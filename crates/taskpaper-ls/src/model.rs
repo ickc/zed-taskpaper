@@ -159,14 +159,13 @@ pub fn parse(text: &str) -> Doc {
             continue;
         }
         let indent = line.chars().take_while(|&c| is_inline_ws(c)).count();
-        let content = &line[indent..];
+        // Strip the '\r' of CRLF line endings: the scanner never sees it as
+        // line content, so it must not block trailing-tag stripping here.
+        let content = line[indent..].strip_suffix('\r').unwrap_or(&line[indent..]);
         let (body_end, mut tags) = split_trailing_tags(content);
         let body = &content[..body_end];
 
-        let is_task = content == "-"
-            || content.starts_with("- ")
-            || content.starts_with("-\t")
-            || content == "-\r";
+        let is_task = content == "-" || content.starts_with("- ") || content.starts_with("-\t");
         let (kind, body_start, name) = if is_task {
             let text = body.get(2..).unwrap_or("").trim().to_owned();
             (Kind::Task, indent + 2.min(body.len()), text)
@@ -343,6 +342,17 @@ mod tests {
         let doc = parse("A:\n\tB:\n\t\t- t\n- top\n");
         assert_eq!(doc.subtree(0), 1..3);
         assert_eq!(doc.project_path(2), vec!["A", "B"]);
+    }
+
+    #[test]
+    fn crlf_line_endings() {
+        let doc = parse("Home: @weekend\r\n\t- milk @done\r\n");
+        assert_eq!(doc.items[0].kind, Kind::Project);
+        assert_eq!(doc.items[0].name, "Home");
+        assert_eq!(doc.items[0].tags.len(), 1);
+        assert_eq!(doc.items[1].kind, Kind::Task);
+        assert_eq!(doc.items[1].name, "milk");
+        assert_eq!(doc.items[1].state, State::Done);
     }
 
     #[test]
