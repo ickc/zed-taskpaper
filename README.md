@@ -27,8 +27,6 @@ queries, no language server, no background processes.
   `cmd-shift-o`, nested as in the document, shown by bare name.
 - **Folding** — indentation-based folding works out of the box (a `@done`
   subtree folds like any other indented block).
-- **Task counts** — a ▶ button on every project heading counts the
-  open/done/cancelled tasks in its subtree (one-time setup below).
 
 ## Install
 
@@ -51,35 +49,6 @@ not possible; this binding appends ` @done` to the current line
   }
 }
 ```
-
-## Counting tasks
-
-Every project heading shows a run (▶) icon in the gutter. To make it
-count the project's tasks, copy `scripts/taskpaper_count.py` from this
-repo to `~/.config/zed/` and add to `tasks.json` (`zed: open tasks`):
-
-```json
-[
-  {
-    "label": "TaskPaper: count tasks in project",
-    "command": "python3 ~/.config/zed/taskpaper_count.py \"$ZED_FILE\" \"$ZED_ROW\"",
-    "tags": ["taskpaper-project"],
-    "reveal": "always"
-  },
-  {
-    "label": "TaskPaper: count tasks in file",
-    "command": "python3 ~/.config/zed/taskpaper_count.py \"$ZED_FILE\""
-  }
-]
-```
-
-Clicking ▶ prints e.g. `Home: 3 open, 2 done (5 tasks)` in the task
-panel. Counts are recursive over the whole subtree, and a task counts as
-done/cancelled if it is tagged so *or* sits under a tagged ancestor —
-the same rule as the fading. The second task summarizes every top-level
-project (run it with `task: spawn`, or bind it to a key); given a row it
-also works from anywhere inside a project, using the nearest enclosing
-one. The script only reads the file (as saved on disk); it never writes.
 
 ## Filtering
 

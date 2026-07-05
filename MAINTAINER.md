@@ -5,8 +5,7 @@
 | Path | What |
 | --- | --- |
 | `extension.toml` | Zed extension manifest; pins the grammar to a commit of this repo |
-| `languages/taskpaper/` | Zed language config + `highlights.scm` / `outline.scm` / `runnables.scm` |
-| `scripts/taskpaper_count.py` | Stdlib-only task counter driven by the runnables ▶ button (README recipe) |
+| `languages/taskpaper/` | Zed language config + `highlights.scm` / `outline.scm` |
 | `tree-sitter-taskpaper/` | The grammar: `grammar.js`, external scanner, generated parser, corpus tests |
 | `examples/demo.taskpaper` | Kitchen-sink example used by `pixi run parse` and manual testing |
 
