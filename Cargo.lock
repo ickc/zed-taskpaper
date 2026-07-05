@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "taskpaper-ls"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "chrono",
  "lsp-server",
@@ -1038,7 +1038,7 @@ dependencies = [
 
 [[package]]
 name = "zed-taskpaper"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "zed_extension_api",
 ]
