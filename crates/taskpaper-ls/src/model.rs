@@ -59,7 +59,8 @@ pub struct Doc {
     pub items: Vec<Item>,
 }
 
-fn is_tag_name_char(c: char) -> bool {
+/// The tag-name charset; mirrors `is_tag_name_char` in scanner.c.
+pub fn is_tag_name_char(c: char) -> bool {
     c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-' || !c.is_ascii()
 }
 

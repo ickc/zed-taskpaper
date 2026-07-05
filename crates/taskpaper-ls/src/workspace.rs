@@ -215,11 +215,8 @@ pub fn completions(doc: &Doc, index: &Index, row: usize, col: u32) -> Vec<Comple
 
     // After "@" (possibly mid-name): offer tag names.
     let at = before.rfind('@');
-    let is_tag_position = at.is_some_and(|at| {
-        before[at + 1..]
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '_' || c == '.' || c == '-')
-    });
+    let is_tag_position =
+        at.is_some_and(|at| before[at + 1..].chars().all(model::is_tag_name_char));
     if !is_tag_position {
         return Vec::new();
     }
