@@ -190,12 +190,17 @@ pub fn completions(doc: &Doc, index: &Index, row: usize, col: u32) -> Vec<Comple
     let byte = util::byte_from_utf16(line, col);
     let before = &line[..byte.min(line.len())];
 
+    // A tag's "@" only counts at the start of the line or after whitespace
+    // (mirroring the parser), so "bob@example.com" never triggers.
+    let at_tag_start = |head: &str| head.is_empty() || head.ends_with([' ', '\t']);
+
     // Inside "@due(", "@start(", "@done(": offer dates.
     if let Some(open) = before.rfind('(') {
         let head = &before[..open];
-        if !before[open + 1..].contains(')')
-            && (head.ends_with("@due") || head.ends_with("@start") || head.ends_with("@done"))
-        {
+        let date_tag = ["@due", "@start", "@done"]
+            .iter()
+            .any(|tag| head.strip_suffix(tag).is_some_and(&at_tag_start));
+        if date_tag && !before[open + 1..].contains(')') {
             let today = dates::today();
             return [
                 (today, "today"),
@@ -217,8 +222,9 @@ pub fn completions(doc: &Doc, index: &Index, row: usize, col: u32) -> Vec<Comple
 
     // After "@" (possibly mid-name): offer tag names.
     let at = before.rfind('@');
-    let is_tag_position =
-        at.is_some_and(|at| before[at + 1..].chars().all(model::is_tag_name_char));
+    let is_tag_position = at.is_some_and(|at| {
+        at_tag_start(&before[..at]) && before[at + 1..].chars().all(model::is_tag_name_char)
+    });
     if !is_tag_position {
         return Vec::new();
     }
@@ -333,6 +339,17 @@ mod tests {
         assert!(items.iter().any(|c| c.label == "@due"));
         let none = completions(&doc, &index, 0, 4);
         assert!(none.is_empty());
+    }
+
+    #[test]
+    fn no_completion_mid_word() {
+        let index = Index::default();
+        // An email's "@" is not a tag position...
+        let doc = model::parse("email bob@exam\n");
+        assert!(completions(&doc, &index, 0, 14).is_empty());
+        // ...and "foo@due(" is not a date position.
+        let doc = model::parse("- pay foo@due(\n");
+        assert!(completions(&doc, &index, 0, 14).is_empty());
     }
 
     #[test]
