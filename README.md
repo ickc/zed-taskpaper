@@ -1,117 +1,102 @@
 # zed-taskpaper
 
-[TaskPaper](https://www.taskpaper.com) language support for
-[Zed](https://zed.dev): syntax highlighting, tag-aware styling, and outline
-navigation for plain-text todo lists.
+[TaskPaper](https://www.taskpaper.com) language support for [Zed](https://zed.dev):
+syntax highlighting, `@done`/`@cancelled` fading, and outline navigation for
+plain-text todo lists. A pure language extension — tree-sitter grammar plus
+queries, no language server, no background processes.
 
-It is a pure language extension — a tree-sitter grammar (included in this
-repo under `tree-sitter-taskpaper`) plus queries. No language server, no
-background processes.
-
-## The TaskPaper format
-
-The grammar follows the [TaskPaper 3 conventions](https://guide.taskpaper.com/getting-started/):
+## Format
 
 - **Task** — a line starting with `- `.
-- **Project** — a non-task line ending with `:` (trailing `@tags` after the
-  colon are allowed).
+- **Project** — a non-task line ending with `:` (trailing tags allowed).
 - **Note** — any other non-blank line.
-- **Tags** — a trailing run of `@name` / `@name(value)` at the end of a
-  line, each preceded by whitespace. (Stricter than TaskPaper 3, which
-  allows tags mid-line — requiring them at the end keeps emails and other
-  `foo@bar` text from being misread as tags.)
-- **Nesting** — indentation with tabs (spaces are tolerated) makes an item a
-  child of the item above.
+- **Tags** — a trailing, whitespace-preceded run of `@name` / `@name(value)`
+  at the end of a line. Mid-line `@words` (emails, handles) are plain text.
+- **Nesting** — tab indentation nests an item under the item above.
 
 ## Features
 
-- **Highlighting** — projects styled as titles, notes dimmed, tasks plain,
-  tags and tag values distinctly colored.
-- **`@done` / `@cancelled` fading** — items tagged `@done` or `@cancelled`
-  are washed into the theme's "predictive" ghost style (dimmer than
-  comments, italic in most themes), so completed items, cancelled items,
-  and notes all recede but read differently. The fade cascades to the
-  item's whole subtree (up to 3 levels below the tagged item), so marking
-  a project `@done` fades everything in it. The state tags themselves stay
-  legible: `@done` in the theme's muted "hint" blue, `@cancelled` in muted
-  amber. (Zed theme syntax styles have no strikethrough, so fading is the
-  closest sensible rendering.)
-- **Bullets as pseudo-checkboxes** — the `- ` bullet is an accent color
-  while a task is open and ghost-faded once done/cancelled. Real checkbox
-  glyphs (`☐`/`☑`) would need conceal/virtual text, which Zed has no
-  extension API for; the bullet's color state is the closest available.
-- **Outline panel** — projects (and only projects, like Markdown headings)
-  appear in the outline panel and in `cmd-shift-o`, nested as in the
-  document, shown by bare name without the colon or tags.
-- **Folding** — indentation-based folding of projects/subtrees works out of
-  the box.
+- **Highlighting** — projects as titles, notes dimmed, tags and values
+  distinctly colored.
+- **`@done` / `@cancelled` fading** — tagged items and their entire subtree
+  (up to 6 levels deep) fade into the theme's ghost style, distinct from
+  note dimming. The state tag stays legible: `@done` muted blue,
+  `@cancelled` muted amber. Task bullets act as pseudo-checkboxes: accent
+  colored while open, faded when closed.
+- **Outline** — projects (only) appear in the outline panel and
+  `cmd-shift-o`, nested as in the document, shown by bare name.
+- **Folding** — indentation-based folding works out of the box.
 
-## Filtering
+## Install
 
-TaskPaper 3 has a query language for filtering; a Zed extension cannot add
-one (extensions cannot create panels or virtual buffers). For finding
-tagged items, buffer search (`cmd-f`) or project-wide search
-(`cmd-shift-f`) for `@due`, `@due(2026-07`, etc. works well. Date
-comparisons ("due on or before today") are out of scope; if you need them,
-pair the file with the TaskPaper app or a CLI.
-
-## Marking items `@done` quickly
-
-Extensions cannot register new editor actions, but Zed's `SendKeystrokes`
-macro covers the common case. Add to your `keymap.json` (`zed: open keymap`):
-
-```json
-[
-  {
-    "context": "Editor && extension == taskpaper",
-    "bindings": {
-      "alt-d": ["workspace::SendKeystrokes", "end space @ d o n e"]
-    }
-  }
-]
-```
-
-This appends ` @done` to the current line. Pick any binding you like
-(`cmd-d` is taken by Zed's multi-cursor selection by default).
-
-## Installing
-
-Not yet on the Zed extension registry. To install as a dev extension:
+Not yet on the Zed extension registry:
 
 1. Clone this repo.
 2. In Zed: `zed: extensions` → `Install Dev Extension` → select the clone.
 
-Zed fetches and compiles the grammar at the commit pinned in
-`extension.toml`, so the clone itself only provides the manifest and
-queries.
+## Toggling `@done` with `alt-d`
+
+Zed extensions cannot add editor commands, but a Zed task can. Save this as
+`~/.config/zed/taskpaper_toggle_done.py`:
+
+```python
+import re, sys
+path, row = sys.argv[1], int(sys.argv[2]) - 1
+with open(path) as f:
+    lines = f.readlines()
+eol = '\n' if lines[row].endswith('\n') else ''
+line = lines[row].rstrip('\n')
+new = re.sub(r'(?:^|[ \t]+)@done(\([^)]*\))?(?=[ \t]|$)', '', line, count=1).rstrip(' \t')
+if new == line:
+    new = line + ' @done'
+lines[row] = new + eol
+with open(path, 'w') as f:
+    f.writelines(lines)
+```
+
+Add to `tasks.json` (`zed: open tasks`):
+
+```json
+{
+  "label": "TaskPaper: toggle @done",
+  "command": "python3 ~/.config/zed/taskpaper_toggle_done.py \"$ZED_FILE\" \"$ZED_ROW\"",
+  "reveal": "never",
+  "hide": "always"
+}
+```
+
+And to `keymap.json` (`zed: open keymap`):
+
+```json
+{
+  "context": "Editor && extension == taskpaper",
+  "bindings": {
+    "alt-d": ["task::Spawn", { "task_name": "TaskPaper: toggle @done" }]
+  }
+}
+```
+
+The task edits the file on disk, so save (`cmd-s`) before pressing `alt-d`;
+Zed reloads the buffer automatically. If you prefer a zero-setup,
+append-only binding instead, use
+`"alt-d": ["workspace::SendKeystrokes", "end space @ d o n e"]`.
+
+## Filtering
+
+For finding tagged items use buffer search (`cmd-f`) or project search
+(`cmd-shift-f`) for `@due`, `@due(2026-07`, etc. TaskPaper 3's query
+language (date comparisons and the like) is beyond what a Zed extension
+can provide.
+
+## Limitations
+
+- Faded, not struck through: Zed theme syntax styles have no strikethrough.
+- The fade cascade stops 6 levels below the tagged item.
+- Tag values cannot contain `)` or newlines; nested parentheses make the
+  run plain text.
+- Tags are recognized only at the end of a line (stricter than TaskPaper 3,
+  by design).
 
 ## Development
 
-Uses [pixi](https://pixi.sh) for the toolchain (tree-sitter CLI + C
-compiler):
-
-```sh
-pixi run generate   # regenerate src/parser.c from grammar.js
-pixi run test       # corpus tests (tree-sitter-taskpaper/test/corpus)
-pixi run parse      # parse examples/demo.taskpaper and print the tree
-pixi run ci         # what CI runs: generate-check + test
-```
-
-The generated parser (`tree-sitter-taskpaper/src/`) is committed because Zed
-builds the grammar from the repo as-is. After changing the grammar, run
-`pixi run generate`, commit, and update `commit` in `extension.toml` to the
-new SHA.
-
-## Known limitations
-
-- The `@done`/`@cancelled` fade cascades at most 3 levels below the tagged
-  item (tree-sitter queries cannot recurse); deeper descendants keep their
-  normal colors.
-- Tag values cannot contain `)` or newlines; a value with nested
-  parentheses (e.g. `@note(a(b))`) makes the whole run plain text.
-- Lines longer than 4096 characters are classified by prefix only (a
-  colossal line ending in `:` becomes a note, and its tags stay text).
-
-## License
-
-MIT
+See [MAINTAINER.md](MAINTAINER.md). MIT licensed.

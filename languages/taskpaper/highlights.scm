@@ -48,8 +48,8 @@
  (#match? @_t "^@(done|cancelled)$"))
 
 ; Descendants: a @done/@cancelled project or task fades its whole subtree.
-; Queries cannot recurse, so this is spelled out for 1-3 levels of nesting
-; below the tagged item (deeper than most real TaskPaper files go).
+; Queries cannot recurse, so this is spelled out for 1-6 levels of nesting
+; below the tagged item.
 
 ; depth 1
 ((_ (tag (tag_name) @_t) (_ (marker) @predictive))
@@ -91,6 +91,48 @@
 ((_ (tag (tag_name) @_t) (_ (_ (_ (tag (tag_value) @predictive)))))
  (#match? @_t "^@(done|cancelled)$"))
 ((_ (tag (tag_name) @_t) (_ (_ (_ (tag ["(" ")"] @predictive)))))
+ (#match? @_t "^@(done|cancelled)$"))
+
+; depth 4
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (marker) @predictive)))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (text) @predictive)))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (project ":" @predictive)))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (tag (tag_name) @predictive))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (tag (tag_value) @predictive))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (tag ["(" ")"] @predictive))))))
+ (#match? @_t "^@(done|cancelled)$"))
+
+; depth 5
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (marker) @predictive))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (text) @predictive))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (project ":" @predictive))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (tag (tag_name) @predictive)))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (tag (tag_value) @predictive)))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (tag ["(" ")"] @predictive)))))))
+ (#match? @_t "^@(done|cancelled)$"))
+
+; depth 6
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (marker) @predictive)))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (text) @predictive)))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (project ":" @predictive)))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (tag (tag_name) @predictive))))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (tag (tag_value) @predictive))))))))
+ (#match? @_t "^@(done|cancelled)$"))
+((_ (tag (tag_name) @_t) (_ (_ (_ (_ (_ (_ (tag ["(" ")"] @predictive))))))))
  (#match? @_t "^@(done|cancelled)$"))
 
 ; --- state-tag accents (last, so they survive the wash) -------------------
