@@ -198,9 +198,7 @@ fn archivable(doc: &Doc) -> Vec<usize> {
         .filter(|&i| {
             let it = &doc.items[i];
             it.state != State::Open
-                && it
-                    .parent
-                    .is_none_or(|p| doc.items[p].state == State::Open)
+                && it.parent.is_none_or(|p| doc.items[p].state == State::Open)
                 && !in_archive(doc, i)
         })
         .collect()
