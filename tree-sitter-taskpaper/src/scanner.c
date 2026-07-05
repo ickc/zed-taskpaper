@@ -12,6 +12,9 @@
 //     boundary is computed during classification (the lexer cannot rewind,
 //     so it is remembered in `pending` and consumed when the parser asks).
 //
+// NOTE: crates/taskpaper-ls/src/model.rs reimplements these rules for the
+// language server — keep the two in sync.
+//
 // Classification rules (following TaskPaper 3, but stricter about tags —
 // only a trailing, whitespace-preceded run of @tag / @tag(value) counts):
 //   task:    "-" followed by space, tab, or end of line

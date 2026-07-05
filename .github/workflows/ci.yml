@@ -3,28 +3,104 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
 
 permissions:
   contents: read
 
-# Pure language extension: CI checks that the committed generated parser
-# matches grammar.js and that the corpus tests pass, on both Linux and
-# macOS (the tree-sitter CLI compiles the parser + scanner natively for
-# the tests, so this also exercises the C scanner on both platforms).
 jobs:
-  test:
+  # Linux and macOS: pixi-driven (same `pixi run ci` as local dev), with the
+  # second architecture cross-compiled on the same runner.
+  build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            targets: x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu
+          - os: macos-latest
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
+    env:
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
     steps:
       - uses: actions/checkout@v7
+
+      - name: Install aarch64 cross linker
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      # rustup itself comes from this action; everything else (toolchain,
+      # wasm target, grammar tests, lint/test/build) runs through pixi tasks
+      # so CI stays a thin wrapper around the same commands used locally.
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip1,${{ matrix.targets }}
+          components: clippy, rustfmt
 
       - uses: prefix-dev/setup-pixi@v0.10.0
         with:
           cache: true
 
-      - name: Generate-check and corpus tests
+      - name: Grammar checks, lint, test, and build (host)
         run: pixi run ci
+
+      - name: Build and package taskpaper-ls for all targets
+        run: |
+          mkdir -p dist
+          for target in ${TARGETS//,/ }; do
+            pixi run build-lsp --target "$target"
+            tar czf "dist/taskpaper-ls-$target.tar.gz" -C "target/$target/release" taskpaper-ls
+          done
+        env:
+          TARGETS: ${{ matrix.targets }}
+
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: taskpaper-ls-${{ matrix.os }}
+          path: dist/*.tar.gz
+
+  # Windows is a compilation target only: the pixi tasks are bash-based, so
+  # this job drives cargo directly with the same flags.
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc,aarch64-pc-windows-msvc
+      - name: Test
+        run: cargo test --workspace
+      - name: Build and package taskpaper-ls
+        shell: bash
+        run: |
+          mkdir -p dist
+          for target in x86_64-pc-windows-msvc aarch64-pc-windows-msvc; do
+            cargo build --release --package taskpaper-ls --target "$target"
+            tar czf "dist/taskpaper-ls-$target.tar.gz" -C "target/$target/release" taskpaper-ls.exe
+          done
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: taskpaper-ls-windows
+          path: dist/*.tar.gz
+
+  # On version tags, publish taskpaper-ls binaries as release assets. The
+  # Zed extension downloads these at install time.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, build-windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: taskpaper-ls-*
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.tar.gz --generate-notes

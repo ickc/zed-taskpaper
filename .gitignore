@@ -6,3 +6,4 @@ node_modules/
 log.html
 # Zed checks the grammar repo out into grammars/ at dev-extension install time
 grammars/
+target/

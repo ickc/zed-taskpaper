@@ -1,10 +1,18 @@
 # CLAUDE.md
 
-Zed extension for TaskPaper: tree-sitter grammar + queries only (no Rust, no
-LSP — keep it that way unless explicitly asked). Read MAINTAINER.md for
-architecture and workflows; it is the source of truth.
+Zed extension for TaskPaper: tree-sitter grammar + queries, plus the
+taskpaper-ls language server (crates/taskpaper-ls) and its WASM launcher
+glue (src/lib.rs). Read MAINTAINER.md for architecture and workflows; it is
+the source of truth.
 
 Hard rules:
+
+- Three places encode the TaskPaper line rules and must stay in sync:
+  tree-sitter-taskpaper/grammar.js + src/scanner.c, and
+  crates/taskpaper-ls/src/model.rs.
+- Releases MUST be cut by pushing a v* tag (CI attaches taskpaper-ls
+  binaries; the extension downloads the latest release's assets — a
+  release without assets breaks installs).
 
 - After any change to `tree-sitter-taskpaper/grammar.js` or `src/scanner.c`:
   run `pixi run generate`, make `pixi run test` pass, commit the regenerated

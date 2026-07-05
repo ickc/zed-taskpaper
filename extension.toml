@@ -1,9 +1,9 @@
 id = "taskpaper"
 name = "TaskPaper"
-version = "0.2.0"
+version = "0.3.0"
 schema_version = 1
 authors = ["Kolen Cheung <10970208+ickc@users.noreply.github.com>"]
-description = "TaskPaper language support: syntax highlighting, tag-aware styling, and outline navigation for plain-text todo lists."
+description = "TaskPaper language support: syntax highlighting, outline navigation, and a language server with due-date diagnostics, task counts, and @done tooling."
 repository = "https://github.com/ickc/zed-taskpaper"
 
 # The grammar lives in this same repository; Zed fetches it at the pinned
@@ -12,3 +12,7 @@ repository = "https://github.com/ickc/zed-taskpaper"
 repository = "https://github.com/ickc/zed-taskpaper"
 commit = "9edb205053a01fae804a167156e74227c1d63612"
 path = "tree-sitter-taskpaper"
+
+[language_servers.taskpaper-ls]
+name = "TaskPaper Language Server"
+languages = ["TaskPaper"]

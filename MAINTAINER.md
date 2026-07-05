@@ -7,7 +7,14 @@
 | `extension.toml` | Zed extension manifest; pins the grammar to a commit of this repo |
 | `languages/taskpaper/` | Zed language config + `highlights.scm` / `outline.scm` |
 | `tree-sitter-taskpaper/` | The grammar: `grammar.js`, external scanner, generated parser, corpus tests |
+| `src/lib.rs` | Extension WASM glue: resolves/downloads the taskpaper-ls binary |
+| `crates/taskpaper-ls/` | The language server (diagnostics, inlay hints, hover, code actions, completion, rename, symbols, formatting) |
 | `examples/demo.taskpaper` | Kitchen-sink example used by `pixi run parse` and manual testing |
+
+The language server reimplements the TaskPaper line rules in
+`crates/taskpaper-ls/src/model.rs` — it must stay in sync with
+`tree-sitter-taskpaper/src/scanner.c` (trailing-tag rules, done/cancelled
+inheritance, indent semantics). Both files carry sync-reminder comments.
 
 Do **not** create a `grammars/` directory: Zed's extension builder checks
 the grammar repo out into `<extension>/grammars/<name>` at install time, and
@@ -94,13 +101,18 @@ wasi-sdk clang, `-fPIC -shared -Os -Wl,--export=tree_sitter_taskpaper
 
 ## Releasing
 
+Releases are built by CI: pushing a `v*` tag runs the build matrix and a
+release job that creates the GitHub release with `taskpaper-ls` binaries
+for all six targets attached. **The extension downloads the server from the
+latest release's assets** — so every release must come from the tag flow
+(a hand-made release without assets breaks installs).
+
 ```sh
-git tag vX.Y.Z && git push --tags
-gh release create vX.Y.Z --generate-notes
+git tag vX.Y.Z && git push origin vX.Y.Z   # CI does the rest
 ```
 
-Keep `version` in `extension.toml` (and `pixi.toml`, `tree-sitter.json`) in
-step with the tag. The tree-sitter.json version is baked into generated
-`parser.c`, so a version bump is a grammar change: run `pixi run generate`,
-commit, push, and re-pin `[grammars.taskpaper] commit` (the usual two-push
-dance) *before* tagging.
+Keep `version` in `extension.toml`, `pixi.toml`, both `Cargo.toml`s, and
+`tree-sitter.json` in step with the tag. The tree-sitter.json version is
+baked into generated `parser.c`, so a version bump is a grammar change: run
+`pixi run generate`, commit, push, and re-pin `[grammars.taskpaper] commit`
+(the usual two-push dance) *before* tagging.
