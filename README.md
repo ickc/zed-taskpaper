@@ -5,7 +5,7 @@
 navigation for plain-text todo lists.
 
 It is a pure language extension — a tree-sitter grammar (included in this
-repo under `grammars/taskpaper`) plus queries. No language server, no
+repo under `tree-sitter-taskpaper`) plus queries. No language server, no
 background processes.
 
 ## The TaskPaper format
@@ -90,12 +90,12 @@ compiler):
 
 ```sh
 pixi run generate   # regenerate src/parser.c from grammar.js
-pixi run test       # corpus tests (grammars/taskpaper/test/corpus)
+pixi run test       # corpus tests (tree-sitter-taskpaper/test/corpus)
 pixi run parse      # parse examples/demo.taskpaper and print the tree
 pixi run ci         # what CI runs: generate-check + test
 ```
 
-The generated parser (`grammars/taskpaper/src/`) is committed because Zed
+The generated parser (`tree-sitter-taskpaper/src/`) is committed because Zed
 builds the grammar from the repo as-is. After changing the grammar, run
 `pixi run generate`, commit, and update `commit` in `extension.toml` to the
 new SHA.

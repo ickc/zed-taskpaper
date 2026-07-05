@@ -17,15 +17,15 @@ c-compiler = "*"
 [tasks]
 # Regenerate src/parser.c & friends from grammar.js. Generated sources are
 # committed because Zed builds the grammar from the repo as-is.
-generate = { cmd = "tree-sitter generate", cwd = "grammars/taskpaper" }
+generate = { cmd = "tree-sitter generate", cwd = "tree-sitter-taskpaper" }
 
 # Fail if grammar.js and the committed generated parser are out of sync.
-generate-check = { cmd = "git diff --exit-code -- grammars/taskpaper/src", depends-on = ["generate"] }
+generate-check = { cmd = "git diff --exit-code -- tree-sitter-taskpaper/src", depends-on = ["generate"] }
 
-# Corpus tests under grammars/taskpaper/test/corpus.
-test = { cmd = "tree-sitter test", cwd = "grammars/taskpaper" }
+# Corpus tests under tree-sitter-taskpaper/test/corpus.
+test = { cmd = "tree-sitter test", cwd = "tree-sitter-taskpaper" }
 
 # Parse an example file and show the tree (handy while hacking on the grammar).
-parse = { cmd = "tree-sitter parse ../../examples/demo.taskpaper", cwd = "grammars/taskpaper" }
+parse = { cmd = "tree-sitter parse ../examples/demo.taskpaper", cwd = "tree-sitter-taskpaper" }
 
 ci = { depends-on = ["generate-check", "test"] }

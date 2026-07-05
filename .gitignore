@@ -4,4 +4,5 @@ node_modules/
 *.dylib
 *.so
 log.html
-grammars/taskpaper/build/
+# Zed checks the grammar repo out into grammars/ at dev-extension install time
+grammars/
