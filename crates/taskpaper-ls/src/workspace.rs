@@ -31,8 +31,8 @@ const BUILTIN_TAGS: &[&str] = &[
 pub struct Index {
     /// tag name -> occurrences, per file.
     tags: HashMap<PathBuf, HashMap<String, usize>>,
-    /// (project name, row), per file.
-    projects: HashMap<PathBuf, Vec<(String, u32)>>,
+    /// (project name, row, start column), per file.
+    projects: HashMap<PathBuf, Vec<(String, u32, u32)>>,
 }
 
 impl Index {
@@ -75,7 +75,9 @@ impl Index {
                 *tags.entry(tag.name.clone()).or_default() += 1;
             }
             if item.kind == Kind::Project {
-                projects.push((item.name.clone(), item.row as u32));
+                // Indentation is ASCII, so the char count is also the
+                // UTF-16 column of the name's start.
+                projects.push((item.name.clone(), item.row as u32, item.indent as u32));
             }
         }
         self.tags.insert(path.to_owned(), tags);
@@ -110,7 +112,7 @@ impl Index {
             let Some(uri) = uri_of_path(path) else {
                 continue;
             };
-            for (name, row) in projects {
+            for (name, row, col) in projects {
                 if !query.is_empty() && !name.to_lowercase().contains(&query) {
                     continue;
                 }
@@ -122,8 +124,8 @@ impl Index {
                     location: Location {
                         uri: uri.clone(),
                         range: Range {
-                            start: Position::new(*row, 0),
-                            end: Position::new(*row, name.encode_utf16().count() as u32),
+                            start: Position::new(*row, *col),
+                            end: Position::new(*row, col + name.encode_utf16().count() as u32),
                         },
                     },
                     container_name: None,
@@ -310,6 +312,17 @@ mod tests {
         let uri = uri_of_path(&path).unwrap();
         assert_eq!(uri.as_str(), "file:///home/user/my%20lists/todo.taskpaper");
         assert_eq!(path_of_uri(&uri).unwrap(), path);
+    }
+
+    #[test]
+    fn symbol_range_covers_the_name() {
+        let mut index = Index::default();
+        index.update(Path::new("/t.taskpaper"), "A:\n\tNested:\n");
+        let symbols = index.symbols("nested");
+        assert_eq!(symbols.len(), 1);
+        let range = symbols[0].location.range;
+        assert_eq!((range.start.line, range.start.character), (1, 1));
+        assert_eq!((range.end.line, range.end.character), (1, 7));
     }
 
     #[test]
