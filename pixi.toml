@@ -1,0 +1,31 @@
+[workspace]
+authors = ["Kolen Cheung <10970208+ickc@users.noreply.github.com>"]
+channels = ["conda-forge"]
+name = "zed-taskpaper"
+platforms = ["linux-64", "linux-aarch64", "osx-arm64", "osx-64"]
+version = "0.1.0"
+
+# This is a pure language extension (grammar + queries, no Rust/WASM code of
+# its own): Zed fetches the grammar from this repo at the pinned commit and
+# compiles it itself. Local tooling is just the tree-sitter CLI plus a C
+# compiler for the CLI's native test builds.
+[dependencies]
+bash = "*"
+tree-sitter-cli = ">=0.25"
+c-compiler = "*"
+
+[tasks]
+# Regenerate src/parser.c & friends from grammar.js. Generated sources are
+# committed because Zed builds the grammar from the repo as-is.
+generate = { cmd = "tree-sitter generate", cwd = "grammars/taskpaper" }
+
+# Fail if grammar.js and the committed generated parser are out of sync.
+generate-check = { cmd = "git diff --exit-code -- grammars/taskpaper/src", depends-on = ["generate"] }
+
+# Corpus tests under grammars/taskpaper/test/corpus.
+test = { cmd = "tree-sitter test", cwd = "grammars/taskpaper" }
+
+# Parse an example file and show the tree (handy while hacking on the grammar).
+parse = { cmd = "tree-sitter parse ../../examples/demo.taskpaper", cwd = "grammars/taskpaper" }
+
+ci = { depends-on = ["generate-check", "test"] }

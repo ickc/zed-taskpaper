@@ -1,0 +1,7 @@
+.pixi/
+node_modules/
+*.wasm
+*.dylib
+*.so
+log.html
+grammars/taskpaper/build/

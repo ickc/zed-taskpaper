@@ -1,0 +1,22 @@
+Inbox:
+	- call the plumber @phone
+	- renew passport @due(2026-08-01) @important
+	a loose note attached to Inbox
+
+Home: @weekend
+	- buy milk @done
+	- water plants
+		use the fertilizer this time
+	Chores:
+		- vacuum @done
+		- laundry
+
+Work:
+	- send quarterly report @due(2026-07-07)
+		draft is in ~/Documents/reports
+		- collect numbers @done
+		- write summary
+	- book flights @waiting(finance approval)
+
+Someday:
+	- learn woodworking

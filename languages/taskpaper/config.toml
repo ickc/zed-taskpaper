@@ -1,0 +1,12 @@
+# TaskPaper uses tabs for indentation (per the TaskPaper 3 spec); the
+# grammar tolerates spaces, but tabs are what other TaskPaper apps expect.
+name = "TaskPaper"
+grammar = "taskpaper"
+path_suffixes = ["taskpaper"]
+tab_size = 4
+hard_tabs = true
+# Let double-click / word motions treat a whole @tag(value)-name as one word.
+word_characters = ["@", "-"]
+brackets = [
+  { start = "(", end = ")", close = true, newline = false },
+]

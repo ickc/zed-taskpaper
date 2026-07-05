@@ -1,0 +1,27 @@
+{
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
+  "grammars": [
+    {
+      "name": "taskpaper",
+      "camelcase": "TaskPaper",
+      "title": "TaskPaper",
+      "scope": "text.taskpaper",
+      "path": ".",
+      "file-types": ["taskpaper"],
+      "injection-regex": "^taskpaper$"
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "TaskPaper grammar for tree-sitter",
+    "authors": [
+      {
+        "name": "Kolen Cheung"
+      }
+    ],
+    "links": {
+      "repository": "https://github.com/ickc/zed-taskpaper"
+    }
+  }
+}

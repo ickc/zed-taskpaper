@@ -1,0 +1,14 @@
+id = "taskpaper"
+name = "TaskPaper"
+version = "0.1.0"
+schema_version = 1
+authors = ["Kolen Cheung <10970208+ickc@users.noreply.github.com>"]
+description = "TaskPaper language support: syntax highlighting, tag-aware styling, and outline navigation for plain-text todo lists."
+repository = "https://github.com/ickc/zed-taskpaper"
+
+# The grammar lives in this same repository; Zed fetches it at the pinned
+# commit and compiles it. Bump `commit` whenever the grammar changes.
+[grammars.taskpaper]
+repository = "https://github.com/ickc/zed-taskpaper"
+commit = "0000000000000000000000000000000000000000" # pinned after first push
+path = "grammars/taskpaper"
