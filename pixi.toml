@@ -3,7 +3,7 @@ authors = ["Kolen Cheung <10970208+ickc@users.noreply.github.com>"]
 channels = ["conda-forge"]
 name = "zed-taskpaper"
 platforms = ["linux-64", "linux-aarch64", "osx-arm64", "osx-64"]
-version = "0.3.1"
+version = "0.3.2"
 
 [dependencies]
 bash = "*"
