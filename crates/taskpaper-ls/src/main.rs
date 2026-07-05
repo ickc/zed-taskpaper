@@ -183,14 +183,29 @@ fn handle_request(connection: &Connection, server: &mut Server, req: Request) ->
         }
         Rename::METHOD => {
             let (id, params) = req.extract::<RenameParams>(Rename::METHOD)?;
+            // Tolerate a typed leading "@", then insist the rest parses as
+            // a tag name — an invalid name would demote every renamed tag
+            // to plain text across the workspace.
+            let new_name = params
+                .new_name
+                .strip_prefix('@')
+                .unwrap_or(&params.new_name);
+            if new_name.is_empty() || !new_name.chars().all(model::is_tag_name_char) {
+                let response = Response::new_err(
+                    id,
+                    lsp_server::ErrorCode::InvalidParams as i32,
+                    format!("not a valid tag name: {:?}", params.new_name),
+                );
+                connection.sender.send(Message::Response(response))?;
+                return Ok(());
+            }
             let edit =
                 doc_and_pos(server, &params.text_document_position).and_then(|(doc, row, col)| {
                     let line = doc.lines.get(row)?;
                     let byte = util::byte_from_utf16(line, col);
                     let (i, t) = doc.tag_at(row, byte)?;
                     let old = doc.items[i].tags[t].name.clone();
-                    let changes =
-                        workspace::rename(&server.index, &server.docs, &old, &params.new_name);
+                    let changes = workspace::rename(&server.index, &server.docs, &old, new_name);
                     Some(WorkspaceEdit {
                         changes: Some(changes),
                         ..WorkspaceEdit::default()
