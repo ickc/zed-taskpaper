@@ -10,5 +10,5 @@ repository = "https://github.com/ickc/zed-taskpaper"
 # commit and compiles it. Bump `commit` whenever the grammar changes.
 [grammars.taskpaper]
 repository = "https://github.com/ickc/zed-taskpaper"
-commit = "4477b75fd98afaa8ce56c77f6115bdf3a5aff42f" # pinned after first push
+commit = "93dae5a43689cc2ad40157d467fcf68bbf2ad2d4"
 path = "tree-sitter-taskpaper"
