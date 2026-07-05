@@ -312,18 +312,13 @@ pub fn format(doc: &Doc) -> Vec<TextEdit> {
         } else {
             ""
         };
-        let mut new_line = format!(
-            "{}{}",
-            "\t".repeat(item.indent),
-            &line[item.body_start.min(line.len())..item.body_end].trim_end()
-        );
-        if item.kind == Kind::Task {
-            new_line = format!(
-                "{}- {}",
-                "\t".repeat(item.indent),
-                line[item.body_start..item.body_end].trim_end()
-            );
-        }
+        let indent = "\t".repeat(item.indent);
+        let body = line[item.body_start.min(line.len())..item.body_end].trim_end();
+        let mut new_line = match item.kind {
+            Kind::Task if body.is_empty() => format!("{indent}-"),
+            Kind::Task => format!("{indent}- {body}"),
+            _ => format!("{indent}{body}"),
+        };
         for tag in &item.tags {
             new_line.push(' ');
             new_line.push_str(line[tag.start..tag.end].trim_end());
@@ -396,5 +391,17 @@ mod tests {
         assert_eq!(edits.len(), 2);
         assert_eq!(edits[0].new_text, "P:");
         assert_eq!(edits[1].new_text, "\t\t- task @due(x) @done");
+    }
+
+    #[test]
+    fn format_empty_task_body() {
+        // A bare "-" and a tag-only task are already canonical: no double
+        // space before the tag, no trailing space after the marker.
+        let doc = parse("- @done\n-\n");
+        assert!(format(&doc).is_empty());
+        let doc = parse("-  @done\n- \n");
+        let edits = format(&doc);
+        let texts: Vec<&str> = edits.iter().map(|e| e.new_text.as_str()).collect();
+        assert_eq!(texts, ["- @done", "-"]);
     }
 }
