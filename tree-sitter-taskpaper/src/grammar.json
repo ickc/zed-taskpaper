@@ -34,10 +34,30 @@
           "name": "_project_begin"
         },
         {
-          "type": "REPEAT1",
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "name",
+              "content": {
+                "type": "SYMBOL",
+                "name": "text"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "STRING",
+          "value": ":"
+        },
+        {
+          "type": "REPEAT",
           "content": {
             "type": "SYMBOL",
-            "name": "_inline"
+            "name": "tag"
           }
         },
         {
@@ -70,10 +90,22 @@
           "name": "marker"
         },
         {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "text"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
           "type": "REPEAT",
           "content": {
             "type": "SYMBOL",
-            "name": "_inline"
+            "name": "tag"
           }
         },
         {
@@ -102,10 +134,22 @@
           "name": "_note_begin"
         },
         {
-          "type": "REPEAT1",
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "text"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "REPEAT",
           "content": {
             "type": "SYMBOL",
-            "name": "_inline"
+            "name": "tag"
           }
         },
         {
@@ -146,35 +190,11 @@
         }
       ]
     },
-    "_inline": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "SYMBOL",
-          "name": "tag"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "text"
-        }
-      ]
-    },
     "marker": {
       "type": "TOKEN",
       "content": {
         "type": "PATTERN",
         "value": "-[ \\t]?"
-      }
-    },
-    "text": {
-      "type": "TOKEN",
-      "content": {
-        "type": "PREC",
-        "value": -1,
-        "content": {
-          "type": "PATTERN",
-          "value": "[^@\\r\\n]+|@"
-        }
       }
     },
     "tag": {
@@ -189,7 +209,7 @@
               "type": "TOKEN",
               "content": {
                 "type": "PATTERN",
-                "value": "@[\\p{L}\\p{N}_.\\-]+"
+                "value": "@([A-Za-z0-9_.\\-]|[^\\x00-\\x7F])+"
               }
             },
             "named": true,
@@ -282,6 +302,10 @@
     {
       "type": "SYMBOL",
       "name": "_note_begin"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "text"
     },
     {
       "type": "SYMBOL",

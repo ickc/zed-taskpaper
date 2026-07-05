@@ -6,10 +6,14 @@
  *   - project: a non-task line that ends with ":" (optionally followed by
  *              trailing @tags)
  *   - note:    any other non-blank line
- * Indentation (tabs, per the TaskPaper spec; spaces tolerated) nests items
- * under the item above. Line classification and INDENT/DEDENT tracking live
- * in the external scanner (src/scanner.c), so the grammar itself is LR(1)
- * with no conflicts.
+ * Tags are recognized only as a trailing, whitespace-preceded run of
+ * @name / @name(value) at the end of a line — "user@example.com" mid-text
+ * is never a tag. Indentation (tabs, per the TaskPaper spec; spaces
+ * tolerated) nests items under the item above.
+ *
+ * Line classification, INDENT/DEDENT tracking, and the text/tag boundary
+ * all live in the external scanner (src/scanner.c), so the grammar itself
+ * is LR(1) with no conflicts.
  */
 
 module.exports = grammar({
@@ -22,12 +26,13 @@ module.exports = grammar({
     $._project_begin,
     $._task_begin,
     $._note_begin,
+    $.text,
     $._error_sentinel,
   ],
 
   // Whitespace is structurally significant and is consumed by the external
   // scanner at line boundaries; this extra only mops up otherwise-unclaimed
-  // whitespace (blank-only files, spaces between inline tokens).
+  // whitespace (blank-only files, the gap between body text and tags).
   extras: $ => [/\s/],
 
   rules: {
@@ -37,7 +42,9 @@ module.exports = grammar({
 
     project: $ => seq(
       $._project_begin,
-      repeat1($._inline),
+      optional(field('name', $.text)),
+      ':',
+      repeat($.tag),
       $._eol,
       optional($._children),
     ),
@@ -45,32 +52,29 @@ module.exports = grammar({
     task: $ => seq(
       $._task_begin,
       $.marker,
-      repeat($._inline),
+      optional($.text),
+      repeat($.tag),
       $._eol,
       optional($._children),
     ),
 
     note: $ => seq(
       $._note_begin,
-      repeat1($._inline),
+      optional($.text),
+      repeat($.tag),
       $._eol,
       optional($._children),
     ),
 
     _children: $ => seq($._indent, repeat1($._item), $._dedent),
 
-    _inline: $ => choice($.tag, $.text),
-
     // The task bullet, including its following space/tab.
     marker: $ => token(/-[ \t]?/),
 
-    // Plain run of line text. A lone "@" that does not start a valid tag
-    // falls through to text as well.
-    text: $ => token(prec(-1, /[^@\r\n]+|@/)),
-
-    // @name or @name(value). Values may not contain ")" or newlines.
+    // @name or @name(value). Values may not contain ")" or newlines. The
+    // name charset must stay in sync with is_tag_name_char in scanner.c.
     tag: $ => seq(
-      field('name', alias(token(/@[\p{L}\p{N}_.\-]+/), $.tag_name)),
+      field('name', alias(token(/@([A-Za-z0-9_.\-]|[^\x00-\x7F])+/), $.tag_name)),
       optional(seq(
         token.immediate('('),
         optional(field('value', alias(token.immediate(/[^)\r\n]*/), $.tag_value))),

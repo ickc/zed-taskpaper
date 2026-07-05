@@ -16,7 +16,10 @@ The grammar follows the [TaskPaper 3 conventions](https://guide.taskpaper.com/ge
 - **Project** — a non-task line ending with `:` (trailing `@tags` after the
   colon are allowed).
 - **Note** — any other non-blank line.
-- **Tags** — `@name` or `@name(value)` anywhere in a line.
+- **Tags** — a trailing run of `@name` / `@name(value)` at the end of a
+  line, each preceded by whitespace. (Stricter than TaskPaper 3, which
+  allows tags mid-line — requiring them at the end keeps emails and other
+  `foo@bar` text from being misread as tags.)
 - **Nesting** — indentation with tabs (spaces are tolerated) makes an item a
   child of the item above.
 
@@ -27,31 +30,20 @@ The grammar follows the [TaskPaper 3 conventions](https://guide.taskpaper.com/ge
 - **`@done` fading** — the whole line of an item tagged `@done` is faded
   like a comment. (Zed theme syntax styles have no strikethrough, so fading
   is the closest sensible rendering.)
-- **Outline panel** — projects and tasks appear in the outline panel
-  (`outline panel: toggle focus`), nested exactly like the document. Tags
-  are shown as dimmed context next to each item.
+- **Outline panel** — projects (and only projects, like Markdown headings)
+  appear in the outline panel and in `cmd-shift-o`, nested as in the
+  document, shown by bare name without the colon or tags.
 - **Folding** — indentation-based folding of projects/subtrees works out of
   the box.
-- **Breadcrumbs & symbol search** — `cmd-shift-o` fuzzy-searches projects
-  and tasks in the current file.
 
-## Filtering (without losing context)
+## Filtering
 
 TaskPaper 3 has a query language for filtering; a Zed extension cannot add
-one (extensions cannot create panels or virtual buffers). The outline panel
-gets you most of the way there:
-
-1. Open the outline panel and focus its filter box.
-2. Type e.g. `@due`, `@today`, or any text.
-
-Because tags are part of each outline entry, tag filters work, and the
-panel keeps ancestor items visible for every match — so a matching task is
-always shown inside its project chain, and clicking it jumps to the real
-location in the buffer. For ad-hoc filtering across files, project search
-(`cmd-shift-f`) for `@due(2026-07` etc. also works well.
-
-Date-comparison queries ("due on or before today") are out of scope for an
-extension; if you need them, pair the file with the TaskPaper app or a CLI.
+one (extensions cannot create panels or virtual buffers). For finding
+tagged items, buffer search (`cmd-f`) or project-wide search
+(`cmd-shift-f`) for `@due`, `@due(2026-07`, etc. works well. Date
+comparisons ("due on or before today") are out of scope; if you need them,
+pair the file with the TaskPaper app or a CLI.
 
 ## Marking items `@done` quickly
 
@@ -102,11 +94,10 @@ new SHA.
 
 ## Known limitations
 
-- `@word` mid-token (e.g. `user@example.com`) is highlighted as a tag; the
-  official apps require a word boundary. Harmless, purely cosmetic.
-- Tag values cannot contain `)` or newlines.
+- Tag values cannot contain `)` or newlines; a value with nested
+  parentheses (e.g. `@note(a(b))`) makes the whole run plain text.
 - Lines longer than 4096 characters are classified by prefix only (a
-  colossal line ending in `:` becomes a note).
+  colossal line ending in `:` becomes a note, and its tags stay text).
 
 ## License
 

@@ -8,7 +8,7 @@ a note line
 
 (document
   (project
-    (text))
+    name: (text))
   (task
     (marker)
     (text))
@@ -28,7 +28,7 @@ Work:
 
 (document
   (project
-    (text)
+    name: (text)
     (task
       (marker)
       (text)
@@ -38,7 +38,7 @@ Work:
       (marker)
       (text)))
   (project
-    (text)
+    name: (text)
     (task
       (marker)
       (text))))
@@ -54,9 +54,9 @@ A:
 
 (document
   (project
-    (text)
+    name: (text)
     (project
-      (text)
+      name: (text)
       (task
         (marker)
         (text))))
@@ -65,11 +65,11 @@ A:
     (text)))
 
 ================================================================================
-Tags, with and without values
+Trailing tags, with and without values
 ================================================================================
 - buy milk @done
 - pay rent @due(2026-07-05) @priority(1)
-- mixed @flag in the middle
+- multiple done-like @today @done
 --------------------------------------------------------------------------------
 
 (document
@@ -92,6 +92,37 @@ Tags, with and without values
     (text)
     (tag
       name: (tag_name))
+    (tag
+      name: (tag_name))))
+
+================================================================================
+Tags only count at the end of the line
+================================================================================
+- mixed @flag in the middle
+- a @done b
+--------------------------------------------------------------------------------
+
+(document
+  (task
+    (marker)
+    (text))
+  (task
+    (marker)
+    (text)))
+
+================================================================================
+Emails are not tags
+================================================================================
+- see <N.J.Mayne@exeter.ac.uk>
+- mail bob@example.com
+--------------------------------------------------------------------------------
+
+(document
+  (task
+    (marker)
+    (text))
+  (task
+    (marker)
     (text)))
 
 ================================================================================
@@ -103,7 +134,7 @@ Groceries: @errand @due(soon)
 
 (document
   (project
-    (text)
+    name: (text)
     (tag
       name: (tag_name))
     (tag

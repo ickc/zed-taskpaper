@@ -29,7 +29,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "note",
@@ -57,10 +57,21 @@
   {
     "type": "project",
     "named": true,
-    "fields": {},
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "text",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "note",
@@ -76,10 +87,6 @@
         },
         {
           "type": "task",
-          "named": true
-        },
-        {
-          "type": "text",
           "named": true
         }
       ]
@@ -152,6 +159,10 @@
   },
   {
     "type": ")",
+    "named": false
+  },
+  {
+    "type": ":",
     "named": false
   },
   {

@@ -4,7 +4,8 @@ Inbox:
 	a loose note attached to Inbox
 
 Home: @weekend
-	- buy milk @done
+	- buy milk @today @done
+	- email Bob <bob@example.com> about the fence
 	- water plants
 		use the fertilizer this time
 	Chores:

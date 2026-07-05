@@ -4,22 +4,25 @@
 //   * INDENT / DEDENT tracking (python-style indent stack; tabs per the
 //     TaskPaper spec, spaces tolerated, one column per character),
 //   * _eol (consumes one line ending),
-//   * line classification: _project_begin / _task_begin / _note_begin are
-//     zero-width-content markers (they absorb the leading indentation and
-//     any preceding blank lines) emitted after looking ahead over the line.
+//   * line classification: _project_begin / _task_begin / _note_begin
+//     markers (they absorb the leading indentation and any preceding blank
+//     lines) emitted after looking ahead over the whole line,
+//   * `text`: the body of a line, up to (but excluding) the trailing run of
+//     @tags — and for projects, excluding the terminating ":" as well. The
+//     boundary is computed during classification (the lexer cannot rewind,
+//     so it is remembered in `pending` and consumed when the parser asks).
 //
-// Classification rules (matching TaskPaper 3):
+// Classification rules (following TaskPaper 3, but stricter about tags —
+// only a trailing, whitespace-preceded run of @tag / @tag(value) counts):
 //   task:    "-" followed by space, tab, or end of line
-//   project: last non-whitespace run of the line, after stripping trailing
-//            @tags (with optional "(value)"), ends with ":"
+//   project: line ends with ":" once trailing whitespace and trailing
+//            @tags are stripped
 //   note:    anything else
 
 #include "tree_sitter/parser.h"
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
-#include <wctype.h>
 
 enum TokenType {
     INDENT,
@@ -28,49 +31,60 @@ enum TokenType {
     PROJECT_BEGIN,
     TASK_BEGIN,
     NOTE_BEGIN,
+    TEXT,
     ERROR_SENTINEL,
 };
 
 #define MAX_DEPTH 128
-// Lines longer than this are classified as notes/tasks only by their prefix;
-// the trailing-colon check needs the end of the line. Generous for real docs.
+// Lines longer than this are classified as notes/tasks by prefix only, with
+// the whole remainder as text (the trailing-tag scan needs the line end).
 #define MAX_LINE 4096
+// `pending` sentinel: text runs to end of line.
+#define PENDING_TO_EOL 0xFFFFu
 
 typedef struct {
     uint32_t stack[MAX_DEPTH]; // stack[0] == 0 always
     uint32_t depth;            // number of valid entries, >= 1
     uint32_t dedents;          // dedents still owed to the parser
+    uint32_t pending;          // text length for the current line's body
+    uint32_t start_col;        // column where the current line's content starts
 } Scanner;
 
 static inline void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
 
-static bool is_tag_name_char(int32_t c) {
-    return iswalnum((wint_t)c) || c == '_' || c == '.' || c == '-';
-}
-
 static bool is_inline_ws(int32_t c) { return c == ' ' || c == '\t'; }
 
-// True if the line ends with ":" once trailing whitespace and trailing
-// @tags (optionally with a parenthesized value) are stripped.
-static bool line_is_project(const int32_t *buf, uint32_t len) {
-    int64_t i = (int64_t)len - 1;
+// Must stay in sync with the `tag_name` regex in grammar.js:
+// ASCII alphanumerics, "_", ".", "-", and any non-ASCII codepoint.
+static bool is_tag_name_char(int32_t c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '-' ||
+           c > 127;
+}
+
+// Index just past the line's body once trailing whitespace and the trailing
+// run of @tags (each optionally with a "(value)") is stripped. A tag must be
+// preceded by whitespace or start the line.
+static uint32_t body_end_without_tags(const int32_t *buf, uint32_t len) {
+    int64_t end = len;
+    while (end > 0 && is_inline_ws(buf[end - 1])) end--;
     for (;;) {
-        while (i >= 0 && is_inline_ws(buf[i])) i--;
-        if (i < 0) return false;
-        if (buf[i] == ':') return true;
-        // Try to strip one trailing tag: @name or @name(value).
-        if (buf[i] == ')') {
-            int64_t j = i - 1;
-            while (j >= 0 && buf[j] != '(' && buf[j] != ')') j--;
-            if (j < 0 || buf[j] != '(') return false;
-            i = j - 1;
+        int64_t e = end;
+        if (e > 0 && buf[e - 1] == ')') {
+            int64_t p = e - 2;
+            while (p >= 0 && buf[p] != '(' && buf[p] != ')') p--;
+            if (p < 0 || buf[p] != '(') break;
+            e = p;
         }
-        int64_t j = i;
-        while (j >= 0 && is_tag_name_char(buf[j])) j--;
-        if (j < 0 || j == i || buf[j] != '@') return false;
-        if (j > 0 && !is_inline_ws(buf[j - 1])) return false;
-        i = j - 1;
+        int64_t j = e;
+        while (j > 0 && is_tag_name_char(buf[j - 1])) j--;
+        if (j == e || j == 0) break; // no name chars, or no room for '@'
+        if (buf[j - 1] != '@') break;
+        if (j - 1 > 0 && !is_inline_ws(buf[j - 2])) break;
+        end = j - 1;
+        while (end > 0 && is_inline_ws(buf[end - 1])) end--;
     }
+    return (uint32_t)end;
 }
 
 static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
@@ -85,20 +99,40 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
         return true;
     }
 
-    if (valid[EOL]) {
-        lexer->mark_end(lexer); // zero-width unless we consume a newline
+    if (valid[EOL] &&
+        (lexer->lookahead == '\r' || lexer->lookahead == '\n' || lexer->eof(lexer))) {
+        lexer->mark_end(lexer);
         if (lexer->lookahead == '\r') advance(lexer);
-        if (lexer->lookahead == '\n') {
+        if (lexer->lookahead == '\n') advance(lexer);
+        lexer->mark_end(lexer);
+        lexer->result_symbol = EOL;
+        return true;
+    }
+
+    if (valid[TEXT]) {
+        lexer->mark_end(lexer);
+        uint32_t n;
+        if (s->pending == PENDING_TO_EOL) {
+            n = UINT32_MAX; // consume to end of line
+        } else {
+            // Characters of this line's content already consumed by other
+            // tokens (the task marker), measured by column.
+            uint32_t col = lexer->get_column(lexer);
+            if (col < s->start_col) return false;
+            uint32_t already = col - s->start_col;
+            if (s->pending <= already) return false;
+            n = s->pending - already;
+        }
+        uint32_t taken = 0;
+        while (taken < n && !lexer->eof(lexer) && lexer->lookahead != '\n' &&
+               lexer->lookahead != '\r') {
             advance(lexer);
-            lexer->mark_end(lexer);
-            lexer->result_symbol = EOL;
-            return true;
+            taken++;
         }
-        if (lexer->eof(lexer)) {
-            lexer->result_symbol = EOL;
-            return true;
-        }
-        return false;
+        if (taken == 0) return false;
+        lexer->mark_end(lexer);
+        lexer->result_symbol = TEXT;
+        return true;
     }
 
     bool line_start = valid[INDENT] || valid[DEDENT] || valid[PROJECT_BEGIN] ||
@@ -168,6 +202,7 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
     // Same level: classify the line. The marker token owns the leading
     // whitespace/blank lines consumed above.
     lexer->mark_end(lexer);
+    s->start_col = lexer->get_column(lexer);
 
     // Buffer the line (lookahead only; nothing past mark_end is consumed).
     int32_t buf[MAX_LINE];
@@ -186,10 +221,19 @@ static bool scan(Scanner *s, TSLexer *lexer, const bool *valid) {
     enum TokenType kind;
     if (len > 0 && buf[0] == '-' && (len == 1 || is_inline_ws(buf[1]))) {
         kind = TASK_BEGIN;
-    } else if (!truncated && line_is_project(buf, len)) {
-        kind = PROJECT_BEGIN;
-    } else {
+        s->pending = truncated ? PENDING_TO_EOL : body_end_without_tags(buf, len);
+    } else if (truncated) {
         kind = NOTE_BEGIN;
+        s->pending = PENDING_TO_EOL;
+    } else {
+        uint32_t body_end = body_end_without_tags(buf, len);
+        if (body_end > 0 && buf[body_end - 1] == ':') {
+            kind = PROJECT_BEGIN;
+            s->pending = body_end - 1; // name excludes the ":"
+        } else {
+            kind = NOTE_BEGIN;
+            s->pending = body_end;
+        }
     }
     if (!valid[kind]) return false;
     lexer->result_symbol = (unsigned)kind;
@@ -210,11 +254,13 @@ unsigned tree_sitter_taskpaper_external_scanner_serialize(void *payload, char *b
     Scanner *s = payload;
     unsigned size = 0;
     buffer[size++] = (char)(s->dedents > 255 ? 255 : s->dedents);
-    uint32_t depth = s->depth;
-    if (depth > TREE_SITTER_SERIALIZATION_BUFFER_SIZE - 1) {
-        depth = TREE_SITTER_SERIALIZATION_BUFFER_SIZE - 1;
-    }
-    for (uint32_t i = 0; i < depth && size < TREE_SITTER_SERIALIZATION_BUFFER_SIZE; i++) {
+    uint32_t pending = s->pending > 0xFFFF ? 0xFFFF : s->pending;
+    buffer[size++] = (char)(pending & 0xFF);
+    buffer[size++] = (char)(pending >> 8);
+    uint32_t start_col = s->start_col > 0xFFFF ? 0xFFFF : s->start_col;
+    buffer[size++] = (char)(start_col & 0xFF);
+    buffer[size++] = (char)(start_col >> 8);
+    for (uint32_t i = 0; i < s->depth && size < TREE_SITTER_SERIALIZATION_BUFFER_SIZE; i++) {
         buffer[size++] = (char)(s->stack[i] > 255 ? 255 : s->stack[i]);
     }
     return size;
@@ -225,10 +271,14 @@ void tree_sitter_taskpaper_external_scanner_deserialize(void *payload, const cha
     s->depth = 1;
     s->stack[0] = 0;
     s->dedents = 0;
-    if (length == 0) return;
+    s->pending = 0;
+    s->start_col = 0;
+    if (length < 5) return;
     s->dedents = (uint8_t)buffer[0];
+    s->pending = (uint32_t)(uint8_t)buffer[1] | ((uint32_t)(uint8_t)buffer[2] << 8);
+    s->start_col = (uint32_t)(uint8_t)buffer[3] | ((uint32_t)(uint8_t)buffer[4] << 8);
     s->depth = 0;
-    for (unsigned i = 1; i < length && s->depth < MAX_DEPTH; i++) {
+    for (unsigned i = 5; i < length && s->depth < MAX_DEPTH; i++) {
         s->stack[s->depth++] = (uint8_t)buffer[i];
     }
     if (s->depth == 0) {
