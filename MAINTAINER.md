@@ -94,4 +94,7 @@ gh release create vX.Y.Z --generate-notes
 ```
 
 Keep `version` in `extension.toml` (and `pixi.toml`, `tree-sitter.json`) in
-step with the tag.
+step with the tag. The tree-sitter.json version is baked into generated
+`parser.c`, so a version bump is a grammar change: run `pixi run generate`,
+commit, push, and re-pin `[grammars.taskpaper] commit` (the usual two-push
+dance) *before* tagging.
