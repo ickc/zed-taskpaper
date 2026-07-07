@@ -31,9 +31,10 @@
 ; (inner captures beat outer ones in Zed).
 
 ; Items under a @done/@cancelled ancestor: the scanner already did the
-; hard work, these nodes just need painting.
+; hard work, these nodes just need painting. The project's own name is
+; excluded here and restored to @title below, so a done project still
+; reads as a project rather than fading into a done task.
 (dim_project [
-  (text) @predictive
   ":" @predictive
   (tag [(tag_name) (tag_value) "(" ")"] @predictive)
 ])
@@ -42,10 +43,12 @@
   (text) @predictive
   (tag [(tag_name) (tag_value) "(" ")"] @predictive)
 ])
-(dim_note [
-  (text) @predictive
-  (tag [(tag_name) (tag_value) "(" ")"] @predictive)
-])
+
+; Notes carry no done/cancelled state of their own — being nested under a
+; finished task doesn't make the note itself "done" — so they keep the
+; plain comment style instead of the wash, which would otherwise make them
+; indistinguishable from a completed task.
+(dim_note (text) @comment)
 
 ; The tagged item's own line. Tags are always a trailing run of siblings,
 ; so "this item is done/cancelled" is "has such a (tag) child"; the two
@@ -66,3 +69,8 @@
 ; --- state-tag accents (last, so they survive the wash) -------------------
 ((tag (tag_name) @hint) (#eq? @hint "@done"))
 ((tag (tag_name) @string.special) (#eq? @string.special "@cancelled"))
+
+; A done/cancelled project's own name stays @title (bold), so it doesn't
+; collapse into the same look as a done task despite sharing the wash color.
+(project name: (text) @title)
+(dim_project name: (text) @title)
